@@ -31,7 +31,7 @@
 
 插件会向 DSH 注册一个运行时技能 **multi-agent-guide**，用于让任何安装本插件的 Agent 自动学会如何使用分组、成员会话与任务板：
 
-- 技能内容：`lib/guide.md`，涵盖组长/成员权限、21 个工具的参数与约束、推荐协作流程、常见错误码、管理页配置与 HTTP API。
+- 技能内容：`lib/guide.md`，涵盖组长/成员权限、6 个合并工具（用 op 区分操作）的参数与约束、推荐协作流程、常见错误码、管理页配置与 HTTP API。
 - 自动引用：插件同时注册一条系统提示段落，Agent 在调用任何 multi_agent_* 工具前会被要求先加载该技能；即使没有主动加载，技能目录里也会显示它的用途与触发条件。
 - 手动触发：在对话中让 Agent「加载 multi-agent-guide 技能」即可；安装后无需额外配置。
 - 更新方式：直接编辑 `lib/guide.md` 并重启 DSH，即可让所有 Agent 看到新版本。
@@ -96,35 +96,21 @@
 
 | 工具 | 谁能使用 | 作用 |
 | --- | --- | --- |
-| `multi_agent_groups` | 所有 Agent | 查看自己的完整会话 ID、分组、角色、组长和成员；可列出当前工作区候选会话 |
-| `multi_agent_members` | 组内成员 | 获取当前分组成员的完整会话 ID 和权限，私聊前用它查收件人 |
-| `multi_agent_create_group` | 所有 Agent | 创建分组并加入；默认成为组长，也可选择成员 |
-| `multi_agent_join_group` | 所有 Agent | 以成员或组长身份加入；接管需显式确认 |
-| `multi_agent_leave_group` | 组内成员 | 退出一个或全部分组 |
-| `multi_agent_manage_group` | 仅组长 | 修改/删除分组，添加、移出成员，设置角色，扫描候选会话 |
+| `multi_agent_groups` | 所有 Agent | `op`：`-l` 列表（默认）/ `-m` 成员 / `-c` 候选会话。查看自己的会话 ID、分组、角色、组长和成员 |
+| `multi_agent_group` | 所有 Agent（管理操作仅组长） | `op`：`-n` 新建 / `-j` 加入 / `-x` 退出 / `-u` 修改 / `-d` 删除 / `-a` 加成员 / `-r` 移成员 / `-s` 调角色 / `-t` 候选会话。分组生命周期统一入口 |
 | `multi_agent_create_member` | 仅组长 | 在组长当前工作区创建全新成员会话；必须绑定一个未分配的任务模块（`taskId`）；默认继承模型/推理等级，组长完全权限时同步完全权限，无历史上下文；受最大会话数限制 |
-| `multi_agent_tasks` | 组内成员 | 查看本组任务列表：任务 ID、标题、状态、说明与连线 |
-| `multi_agent_create_task` | 仅组长 | 在分组任务空间创建任务卡片，返回任务 ID |
-| `multi_agent_update_task` | 仅组长 | 按任务 ID 修改标题、说明、状态，或把任务分配给组内成员（负责人归属） |
-| `multi_agent_delete_task` | 仅组长 | 按任务 ID 删除任务卡片，相关连线一并删除 |
-| `multi_agent_set_task_status` | 任务负责人或组长 | 更改任务完成状态（todo / doing / done） |
-| `multi_agent_connect_tasks` | 仅组长 | 连接两张任务卡（from → to），禁止跨组与成环 |
-| `multi_agent_disconnect_tasks` | 仅组长 | 按连线 ID 删除一条连线 |
-| `multi_agent_messages` | 组内成员 | 读取消息队列；组长读取全组广播和私聊，成员仅读取与自己相关的消息 |
-| `multi_agent_send_message` | 组内成员 | 发送广播或私聊，并以 `steer` 插话投递给每个接收者 |
-| `multi_agent_reply_message` | 有待回复消息的成员 | 回复消息；Agent 消息插话送回原发送者，用户消息记录到用户队列 |
-| `multi_agent_activity_list` | 组内成员 | 查看执行列表；默认只看使用中，`-a` 全部，`-s 文件名` 按文件名筛选 |
-| `multi_agent_activity_create` | 组内成员 | 登记文件使用记录；同一文件被他人占用时返回 `FILE_IN_USE` |
-| `multi_agent_activity_update` | 创建者或组长 | 修改执行记录的状态、操作、路径、目标目录或备注 |
-| `multi_agent_activity_delete` | 创建者或组长 | 删除执行记录，释放文件占用 |
+| `multi_agent_task` | 组内成员（写操作仅组长；改状态限负责人/组长） | `op`：`-l` 列表 / `-c` 创建 / `-u` 修改与派活 / `-d` 删除 / `-s` 改状态 / `-x` 连线 / `-r` 删连线。任务空间（含负责人归属与 DAG 连线） |
+| `multi_agent_activity` | 组内成员（改/删限创建者或组长） | `op`：`-l` 查看（`query` 支持 `-a`、`-s 文件名`）/ `-c` 登记 / `-u` 修改 / `-d` 删除。执行列表与文件占用 |
+| `multi_agent_message` | 组内成员 | `op`：`-l` 查看队列 / `-s` 发送（广播或私聊）/ `-r` 回复。消息以 `steer` 插话送达 |
 
 **最快用法**
 
-- 发广播：`multi_agent_send_message({ "content": "..." })`。只加入一个分组时不需要 `groupId`，默认广播。
-- 发私聊：先 `multi_agent_members` 拿完整会话 ID，再 `multi_agent_send_message({ "mode": "private", "recipientSessionId": "session-...", "content": "..." })`。
-- 回复：`multi_agent_reply_message({ "content": "..." })`。只有一条待回复消息时不需要 `messageId`；Agent 直接调用工具即可，不需要操作界面、点击或 shell。
-- 自己的完整会话 ID：`multi_agent_groups` 或 `multi_agent_members` 的第一行。
-
+- 发广播：`multi_agent_message({ "op": "-s", "content": "..." })`。只加入一个分组时不需要 `groupId`。
+- 发私聊：先 `multi_agent_groups({ "op": "-m" })` 拿完整会话 ID，再 `multi_agent_message({ "op": "-s", "mode": "private", "recipientSessionId": "session-...", "content": "..." })`。
+- 回复：`multi_agent_message({ "op": "-r", "content": "..." })`。只有一条待回复消息时不需要 `messageId`。
+- 自己的完整会话 ID：`multi_agent_groups` 的第一行。
+- 任务与状态：`multi_agent_task({ "op": "-l" })` 看列表；组长用 `op="-c"` 建卡、`op="-u"` 派活、`op="-x"` 连线；负责人用 `op="-s"` 改状态。
+- 文件占用：`multi_agent_activity({ "op": "-l" })` 查看使用中文件，`op="-c"` 登记占用。
 “待回复”工具只在下一条消息尚未回复时出现；完成回复后自动隐藏。广播和私聊都不能跨组，私聊对象必须是同组成员。
 
 ## HTTP API

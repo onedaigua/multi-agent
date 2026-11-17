@@ -1960,7 +1960,7 @@ window.__ModuleLoader__.load({
         message.content,
         '',
         `消息编号：${message.id}`,
-        '收到后必须回复：调用 multi_agent_reply_message 工具，传 content 即可回复。',
+        '收到后必须回复：调用 multi_agent_message 工具（op="-r"），传 content 即可回复。',
       ].join('\n')
     }
 
