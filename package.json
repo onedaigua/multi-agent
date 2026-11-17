@@ -1,6 +1,6 @@
 {
   "name": "dsh-multi-agent",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "Multi-Agent 分组：Agent 可通过权限工具管理分组与组内广播/私聊，侧边栏提供可视化面板。",
   "license": "MIT",
   "type": "module",

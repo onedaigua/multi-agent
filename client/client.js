@@ -802,6 +802,128 @@ window.__ModuleLoader__.load({
     }
     const ACTIVITY_OP_LABEL = { open: '使用', move: '移动', copy: '复制' }
 
+    function formatTokens(value) {
+      const tokens = Number(value) || 0
+      if (tokens < 1000) return String(tokens)
+      if (tokens < 1000000) return `${(tokens / 1000).toFixed(tokens < 10000 ? 2 : 1)}K`
+      return `${(tokens / 1000000).toFixed(2)}M`
+    }
+
+    function TokenUsageSection({ group, byId }) {
+      const [report, setReport] = useState({ status: 'loading', data: null, error: null })
+      const [tick, setTick] = useState(0)
+
+      useEffect(() => {
+        let alive = true
+        setReport((current) => ({
+          ...current,
+          status: current.data ? 'refreshing' : 'loading',
+          error: null,
+        }))
+        apiFetch(`/usage?groupId=${encodeURIComponent(group.id)}${tick > 0 ? '&refresh=1' : ''}`)
+          .then((payload) => {
+            if (!alive) return
+            const data = payload?.report ?? null
+            setReport({ status: data ? 'ready' : 'empty', data, error: null })
+          })
+          .catch((failure) => {
+            if (!alive) return
+            const message = failure && failure.message ? failure.message : ''
+            setReport((current) => ({
+              ...current,
+              status: 'error',
+              error: /（404）|404/.test(message)
+                ? '插件服务尚未加载新版本，重启 DSH 后即可看到 Token 报表'
+                : message || 'Token 报表加载失败',
+            }))
+          })
+        return () => {
+          alive = false
+        }
+      }, [group.id, tick])
+
+      const rows = Array.isArray(report.data?.members) ? report.data.members : []
+      const total = report.data?.total || 0
+
+      return h(
+        'section',
+        { className: 'ma-usage', 'aria-label': 'Token 用量' },
+        h(
+          'div',
+          { className: 'ma-usage-head' },
+          h(
+            'div',
+            { className: 'ma-usage-title' },
+            h(Icon, { name: 'users', size: 14 }),
+            h('strong', null, 'Token 用量'),
+            h('span', { className: 'ma-count-pill' }, `${rows.length} 位成员`),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'ma-btn ma-btn-ghost ma-btn-sm',
+              disabled: report.status === 'loading' || report.status === 'refreshing',
+              onClick: () => setTick((value) => value + 1),
+            },
+            h(Icon, { name: 'refresh', size: 13 }),
+            report.status === 'refreshing' ? '刷新中…' : '刷新',
+          ),
+        ),
+        h(
+          'div',
+          { className: 'ma-usage-total' },
+          h('span', null, '组内共消耗'),
+          h('strong', null, formatTokens(total)),
+          h('em', null, 'tokens'),
+        ),
+        report.status === 'loading'
+          ? h('p', { className: 'ma-usage-empty' }, '正在统计成员用量…')
+          : null,
+        report.status === 'error'
+          ? h(
+              'p',
+              { className: 'ma-usage-empty is-error', role: 'alert' },
+              report.error || 'Token 报表加载失败',
+            )
+          : null,
+        report.status !== 'loading' && report.status !== 'error' && rows.length === 0
+          ? h('p', { className: 'ma-usage-empty' }, '这个分组还没有成员，暂无用量。')
+          : null,
+        rows.length > 0
+          ? h(
+              'ul',
+              { className: 'ma-usage-list' },
+              rows.map((row) => {
+                const percent = Number(row.percent) || 0
+                return h(
+                  'li',
+                  { key: row.sessionId, className: 'ma-usage-row' },
+                  h(
+                    'span',
+                    { className: 'ma-usage-person' },
+                    h('strong', { title: displayNameOf(byId, row.sessionId) }, displayNameOf(byId, row.sessionId)),
+                    h('small', { title: row.sessionId }, row.role === ROLE_LEADER ? '组长' : '成员'),
+                  ),
+                  h(
+                    'span',
+                    { className: 'ma-usage-bar', 'aria-hidden': 'true' },
+                    h('i', { style: { width: `${Math.max(percent, row.total > 0 ? 2 : 0)}%` } }),
+                  ),
+                  h('span', { className: 'ma-usage-value' }, formatTokens(row.total)),
+                  h('span', { className: 'ma-usage-percent' }, row.total > 0 && percent === 0 ? '<1%' : `${percent}%`),
+                )
+              }),
+            )
+          : null,
+        h(
+          'p',
+          { className: 'ma-usage-hint' },
+          '按 provider 实际回报的 tokens 累计（含缓存读取与输出）；占比按组内总量四舍五入到 1%。',
+        ),
+      )
+    }
+
     function GroupDetail({ group, state, byId, busy, onEdit, onDelete, onRole, onRemove, onAddMembers, onManage, onMessages }) {
       const members = groupMembers(state, group.id)
       const leaderId = leaderOf(state, group.id)
@@ -1081,6 +1203,7 @@ window.__ModuleLoader__.load({
                 }),
               ),
         ),
+        h(TokenUsageSection, { group, byId }),
         h(
           'div',
           { className: 'ma-detail-foot' },
@@ -5599,6 +5722,31 @@ window.__ModuleLoader__.load({
 .ma-activity-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .ma-activity-main strong { font-size: 11px; color: var(--ma-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ma-activity-main small { font-size: 9.5px; color: var(--ma-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ma-usage { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ma-border); }
+.ma-usage-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ma-usage-title { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ma-text-2); }
+.ma-usage-title strong { font-size: 12px; color: var(--ma-text); }
+.ma-usage-total { display: flex; align-items: baseline; gap: 6px; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--ma-border); background: var(--ma-soft); }
+.ma-usage-total span { font-size: 10.5px; color: var(--ma-text-3); }
+.ma-usage-total strong { font-size: 20px; line-height: 1.1; color: var(--ma-accent); font-variant-numeric: tabular-nums; }
+.ma-usage-total em { font-style: normal; font-size: 9.5px; color: var(--ma-text-3); }
+.ma-usage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ma-usage-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(54px, 1.5fr) auto auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); }
+.ma-usage-person { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ma-usage-person strong { font-size: 11px; color: var(--ma-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-usage-person small { font-size: 9px; color: var(--ma-text-3); }
+.ma-usage-bar { position: relative; height: 6px; border-radius: 999px; background: var(--ma-soft-strong); overflow: hidden; }
+.ma-usage-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--ma-accent); }
+.ma-usage-value { font-size: 11px; font-weight: 600; color: var(--ma-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ma-usage-percent { font-size: 10px; color: var(--ma-text-2); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.ma-usage-empty { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ma-text-3); }
+.ma-usage-empty.is-error { color: #b91c1c; }
+.ma-usage-hint { margin: 0; font-size: 9.5px; line-height: 1.55; color: var(--ma-text-3); }
+@media (max-width: 560px) {
+  .ma-usage-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .ma-usage-bar { display: none; }
+}
 `
 
     function installStyles() {

@@ -22,6 +22,7 @@
 - **执行列表（activity）**：组内共享的文件使用记录，记录谁在什么时间使用了/移动/复制了哪个文件、状态是使用中/仅查看/已修改。用于避免两人同时改同一个文件。
 - **消息（message）**：组内广播或私聊，以 `steer` 插话直接送达对方对话；收到消息后必须回复。
 - **成员会话**：组长可以在自己的当前工作区新建一个空白会话作为成员，新会话没有历史上下文。
+- **Token 用量报表**：分组详情页展示组内每人的累计 token 用量、组内总量与占比；按用量从高到低排列，占比取整到 1%。
 
 ## 3. 工具速查表（6 个）
 
@@ -205,12 +206,14 @@ multi_agent_message op="-s" content="请实现三路快排并附测试，完成�
 
 - 最大会话数：管理弹窗「最大会话数」，默认 8，范围 2–32，不能小于当前成员数。
 - 新会话继承：默认继承组长；也可指定固定模型与推理等级（模型列表来自当前可用模型）。
+- Token 用量：分组详情页的「Token 用量」区块；服务端缓存 15 秒，点「刷新」可强制重算。
 
 ## 11. HTTP API（人类调试用）
 
 - `GET /multi-agent/api/state` — 分组、成员、任务、连线、执行记录（消息不公开）
 - `GET /multi-agent/api/tools` — 工具注册状态
 - `GET /multi-agent/api/models` — 可选模型目录
+- `GET /multi-agent/api/usage?groupId=<分组>&refresh=1` — Token 用量报表（`total` 为组内总量，成员按用量降序，`percent` 为整数占比）
 - `GET /multi-agent/api/messages?groupId=&sessionId=` — 指定身份可见的消息
 - `POST /multi-agent/api/action` — 变更操作，要求同源 + 请求头 `x-dsh-multi-agent: 1` + JSON
 
