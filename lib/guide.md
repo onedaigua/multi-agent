@@ -17,6 +17,7 @@
 - **会话上限**：每组默认最多 8 个会话（含组长），用户可在管理页改成 2–32。满员时加入或创建都会返回 `GROUP_FULL`。
 - **任务板**：每个分组一个独立任务空间。任务即卡片，有 `task_...` ID；连线是有向边，有 `edge_...` ID。任务与连线构成 a→b→c 的 DAG，允许并行分叉，不允许成环。
 - **任务模块**：任务板上的卡片就是"工作包/模块"。创建成员会话前必须先建好任务模块，并把其中一个**未分配**模块绑定给新会话。
+- **执行列表**：每个分组共享的文件使用记录。成员用 `read` 打开文件时自动登记为「仅查看」，用 `write`/`edit` 修改时自动登记为「已修改」；也可以用工具手动登记「使用中」来占住文件。同一文件被他人登记为使用中时，再登记使用会返回 `FILE_IN_USE`；修改/删除记录只有创建者或组长可以操作。
 - **继承配置**：组长可在管理页设置「新会话继承」，默认 `inherit`（模型与推理等级跟随组长），也可 `custom` 指定模型与推理等级。
 - **完全权限**：组长为 `danger-full-access` 时，新建的成员会话会自动设为完全权限。
 - **上下文**：新建会话没有任何历史对话，只带系统提示与工具。派活时要把目标、约束、验收标准写完整，不能假设它知道之前聊过什么。
@@ -42,6 +43,10 @@
 | `multi_agent_messages` | 组内成员 | `groupId?` | 查看消息队列与待回复消息 |
 | `multi_agent_send_message` | 组内成员 | `content`、`groupId?`、`mode?`、`recipientSessionId?` | 广播（默认）或私聊，以插话方式送达 |
 | `multi_agent_reply_message` | 有待回复消息者 | `content`、`messageId?`、`groupId?` | 回复消息；每条消息只能回复一次 |
+| `multi_agent_activity_list` | 组内成员 | `groupId?`、`query?` | 查看执行列表；默认只看使用中，`-a` 全部，`-s 文件名` 按文件名筛选 |
+| `multi_agent_activity_create` | 组内成员 | `groupId?`、`path`、`state?`、`op?`、`destination?`、`note?` | 登记文件使用记录；使用中冲突返回 409 `FILE_IN_USE` |
+| `multi_agent_activity_update` | 创建者或组长 | `activityId`、`state?`、`op?`、`path?`、`destination?`、`note?` | 修改执行记录（如把 using 改为 modified） |
+| `multi_agent_activity_delete` | 创建者或组长 | `activityId` | 删除执行记录，释放文件占用 |
 
 ## 4. 场景 A：组长组建团队并交付
 
@@ -128,7 +133,28 @@ multi_agent_send_message
 - 回复以插话形式立即送达原发送者；对用户消息的回复会进入用户消息队列。
 - 组长能看到全组广播和私聊；成员只能看到自己发送或收到的消息。
 
-## 7. 组长管理分组
+## 7. 场景 D：执行列表与文件占用
+
+### 7.1 修改共享文件前
+
+1. `multi_agent_activity_list` 查看目标文件是否有人正在使用。
+2. 用 `multi_agent_activity_create` 传 `{ "path": "...", "state": "using" }` 登记占用；若同一文件已被其他成员占用会返回 409 `FILE_IN_USE`，消息里带有使用者的 sessionId 和时间。
+3. 修改文件；只想查看时用 `state: "viewing"`，不受占用限制，但返回结果会提示文件正被谁使用。
+4. 改完用 `multi_agent_activity_update` 把状态改为 `modified`，或 `multi_agent_activity_delete` 释放记录。
+
+### 7.2 移动或复制
+
+- `op` 传 `move` / `copy`，并用 `destination` 给出目标目录。
+- 记录里会保留原路径与目标目录，组长可据此追踪文件流向。
+
+### 7.3 自动登记与筛选
+
+- 成员通过 `read` / `write` / `edit` 工具操作工作区文件时会自动登记，无需手动创建；同一会话对同一文件只保留一条自动记录。
+- 自动记录和手动记录都会保留，`source` 字段区分 `auto` / `manual`。
+- `multi_agent_activity_list` 默认只返回「使用中」；传 `-a` 看全部，传 `-s 文件名` 按文件名匹配（路径可不同），可组合成 `-a -s sort.js`。
+- 组长可在管理页的执行列表中切换「只看使用中 / 显示全部」。
+
+## 8. 组长管理分组
 
 `multi_agent_manage_group` 的 `action`：
 
@@ -140,7 +166,7 @@ multi_agent_send_message
 
 组长退出或被移出后，最早加入的成员自动升为组长；成员全部离开后分组自动删除。
 
-## 8. 常见错误码
+## 9. 常见错误码
 
 | 错误码 | 含义 | 处理方式 |
 | --- | --- | --- |
@@ -162,15 +188,21 @@ multi_agent_send_message
 | `SPAWN_MODEL_UNAVAILABLE` | 分组继承配置的模型不可用 | 请组长在管理页重选继承配置 |
 | `INVALID_MAX_SESSIONS` | 会话上限不是 2–32 | 传合法数字 |
 | `MAX_SESSIONS_TOO_SMALL` | 新上限低于当前人数 | 先移出成员或调大上限 |
+| `FILE_IN_USE` | 文件正被其他成员使用 | 换 `state:"viewing"` 或先联系使用者释放 |
+| `NOT_ACTIVITY_OWNER` | 不是执行记录的创建者/组长 | 让创建者或组长修改/删除 |
+| `ACTIVITY_NOT_FOUND` | 执行记录不存在 | 用 `multi_agent_activity_list -a` 重新获取 ID |
+| `DESTINATION_REQUIRED` | move/copy 缺目标目录 | 传 `destination` |
+| `ACTIVITY_LIMIT` | 执行记录达到 500 条上限 | 清理已结束的记录 |
+| `INVALID_QUERY` | 筛选参数不合法 | 只支持 `-a`、`-s 文件名` |
 
-## 9. 配置项（由用户在界面上修改）
+## 10. 配置项（由用户在界面上修改）
 
 - **每组最大会话数**：2–32，默认 8，含组长；仅用户可调，Agent 没有对应工具。
 - **新会话继承**：`inherit` 跟随组长模型与推理等级；`custom` 指定 `provider` / `model` / `reasoningEffort`，模型列表来自当前可用模型目录（`GET /multi-agent/api/models`）。
 - **组名/说明/颜色**：组名唯一，最多 40 字；说明最多 240 字。
 - **完全权限**：组长当前为 `danger-full-access` 时，新建成员会话自动继承该权限。
 
-## 10. HTTP API（人类调试用）
+## 11. HTTP API（人类调试用）
 
 - `GET /multi-agent/api/state`：全部状态。
 - `GET /multi-agent/api/tools`：Agent 工具注册状态。
@@ -178,9 +210,9 @@ multi_agent_send_message
 - `GET /multi-agent/api/messages?groupId=...`：分组消息。
 - `POST /multi-agent/api/action`：需要请求头 `x-dsh-multi-agent: 1`，body 形如 `{ "action": "createTask", "groupId": "...", "title": "..." }`。
 
-常用 action：`createGroup` / `updateGroup` / `deleteGroup` / `assign` / `leave` / `createMemberSession` / `createTask` / `updateTask` / `deleteTask` / `setTaskStatus` / `createTaskEdge` / `deleteTaskEdge` / `sendMessage` / `replyMessage` / `deliverReply` / `markDelivered`。
+常用 action：`createGroup` / `updateGroup` / `deleteGroup` / `assign` / `leave` / `createMemberSession` / `createTask` / `updateTask` / `deleteTask` / `setTaskStatus` / `createTaskEdge` / `deleteTaskEdge` / `createActivity` / `updateActivity` / `deleteActivity` / `sendMessage` / `replyMessage` / `deliverReply` / `markDelivered`。
 
-## 11. 协作最佳实践
+## 12. 协作最佳实践
 
 - 先建任务树，再建会话：一个模块一个会话，职责清晰、便于验收。
 - 任务说明写成自包含规格：目标、输入、输出、约束、验收标准、交付位置。
@@ -189,3 +221,4 @@ multi_agent_send_message
 - 派活消息里带上任务 ID（`task_...`），成员可直接引用。
 - 完成任务及时改 `done` 并回复组长；有阻塞立即私聊组长。
 - 组长只管理，不领取任务；需要更多并行度时，让组员自建子组并担任组长。
+- 改动共享文件前先查执行列表并登记「使用中」，改完及时释放；需要追踪时用 `-a` / `-s 文件名` 筛选。

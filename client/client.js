@@ -328,6 +328,7 @@ window.__ModuleLoader__.load({
         memberships: state && Array.isArray(state.memberships) ? state.memberships : [],
         tasks: state && Array.isArray(state.tasks) ? state.tasks : [],
         taskEdges: state && Array.isArray(state.taskEdges) ? state.taskEdges : [],
+        activities: state && Array.isArray(state.activities) ? state.activities : [],
       }
     }
 
@@ -338,6 +339,7 @@ window.__ModuleLoader__.load({
         memberships: [],
         tasks: [],
         taskEdges: [],
+        activities: [],
         error: null,
         busy: false,
       }
@@ -793,9 +795,25 @@ window.__ModuleLoader__.load({
       )
     }
 
+    const ACTIVITY_STATE_META = {
+      using: { label: '使用中', tone: 'using' },
+      viewing: { label: '仅查看', tone: 'viewing' },
+      modified: { label: '已修改', tone: 'modified' },
+    }
+    const ACTIVITY_OP_LABEL = { open: '使用', move: '移动', copy: '复制' }
+
     function GroupDetail({ group, state, byId, busy, onEdit, onDelete, onRole, onRemove, onAddMembers, onManage, onMessages }) {
       const members = groupMembers(state, group.id)
       const leaderId = leaderOf(state, group.id)
+      const [showAllActivities, setShowAllActivities] = useState(false)
+      const groupActivities = Array.isArray(state.activities)
+        ? state.activities.filter((activity) => activity.groupId === group.id)
+        : []
+      const usingActivities = groupActivities.filter((activity) => activity.state === 'using')
+      const visibleActivities = (showAllActivities ? groupActivities : usingActivities)
+        .slice()
+        .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
+        .slice(0, 30)
       return h(
         'div',
         { className: 'ma-detail', style: { '--ma-c': group.color } },
@@ -1004,6 +1022,65 @@ window.__ModuleLoader__.load({
                 )
               }),
             ),
+        h(
+          'section',
+          { className: 'ma-activity', 'aria-label': '执行列表' },
+          h(
+            'div',
+            { className: 'ma-activity-head' },
+            h(
+              'div',
+              { className: 'ma-activity-title' },
+              h(Icon, { name: 'folder', size: 14 }),
+              h('strong', null, '执行列表'),
+              h(
+                'span',
+                { className: 'ma-count-pill' },
+                showAllActivities ? `${groupActivities.length} 条记录` : `${usingActivities.length} 使用中`,
+              ),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'ma-btn ma-btn-ghost ma-btn-sm',
+                onClick: () => setShowAllActivities((current) => !current),
+              },
+              showAllActivities ? '只看使用中' : '显示全部',
+            ),
+          ),
+          visibleActivities.length === 0
+            ? h(
+                'p',
+                { className: 'ma-activity-empty' },
+                showAllActivities
+                  ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
+                  : '当前没有成员正在使用文件。',
+              )
+            : h(
+                'ul',
+                { className: 'ma-activity-list' },
+                visibleActivities.map((activity) => {
+                  const meta = ACTIVITY_STATE_META[activity.state] || ACTIVITY_STATE_META.viewing
+                  const destination = activity.destination ? ` → ${activity.destination}` : ''
+                  return h(
+                    'li',
+                    { key: activity.id, className: 'ma-activity-row' },
+                    h('span', { className: cx('ma-activity-state', `is-${meta.tone}`) }, meta.label),
+                    h(
+                      'span',
+                      { className: 'ma-activity-main' },
+                      h('strong', { title: activity.path }, activity.name || activity.path),
+                      h(
+                        'small',
+                        { title: activity.path },
+                        `${ACTIVITY_OP_LABEL[activity.op] || activity.op} · ${displayNameOf(byId, activity.sessionId)}${destination} · ${formatDateTime(activity.updatedAt)}`,
+                      ),
+                    ),
+                  )
+                }),
+              ),
+        ),
         h(
           'div',
           { className: 'ma-detail-foot' },
@@ -5508,6 +5585,20 @@ window.__ModuleLoader__.load({
 @media (prefers-reduced-motion: reduce) {
   .ma-page *, .ma-panel *, .ma-overlay *, .ma-trigger * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+.ma-activity { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ma-border); }
+.ma-activity-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ma-activity-title { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ma-text-2); }
+.ma-activity-title strong { font-size: 12px; color: var(--ma-text); }
+.ma-activity-empty { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ma-text-3); }
+.ma-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ma-activity-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); }
+.ma-activity-state { flex: none; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 600; line-height: 1.6; }
+.ma-activity-state.is-using { color: #b45309; background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.ma-activity-state.is-viewing { color: var(--ma-text-2); background: var(--ma-soft); }
+.ma-activity-state.is-modified { color: #1d4ed8; background: color-mix(in srgb, #3b82f6 12%, transparent); }
+.ma-activity-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ma-activity-main strong { font-size: 11px; color: var(--ma-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-activity-main small { font-size: 9.5px; color: var(--ma-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 `
 
     function installStyles() {
