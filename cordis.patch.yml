@@ -1,0 +1,4 @@
+# dsh-multi-agent bundle layer: insert the host plugin into the profile.
+- insert:
+    - id: multi-agent
+      name: dsh-multi-agent
