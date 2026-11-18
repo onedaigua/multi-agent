@@ -8,7 +8,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - The server re-checks permissions on every write; tool visibility is only a hint.
 - Unsure about your group or role? Call `multi_agent_groups` first.
 
-## Tools (6; most select the operation with `op="-x"`)
+## Tools (7; most select the operation with `op="-x"`)
 
 ### multi_agent_groups
 - `-l` (default): list all groups, your role, leaders and members.
@@ -39,7 +39,8 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `-c`: create. Needs `title` (1–80) **and** `status` (`todo`|`doing`|`done`). Leader only.
 - `-u`: edit. Needs `taskId`; pass `title`, `description`, `status`, `assigneeSessionId` (empty string clears it) as needed. Leader only.
 - `-d`: delete. Needs `taskId`; its edges go too. Leader only.
-- `-s`: set status. Needs `taskId` and `status`; allowed for the assignee or the leader.
+- `-s`: set status. Needs `taskId` and `status`; allowed for the assignee or the leader. Marking a task `done` requires a non-empty `completionNote` (pass it with `-s` or `-u`).
+- A task that is `done` with a completion note is a permanent record: nobody can delete it (tool returns `TASK_LOCKED`), and every member can list it.
 - `-x`: connect. Needs `from`, `to` (task ids); rejects cycles. Leader only.
 - `-r`: delete an edge. Needs `edgeId`. Leader only.
 
@@ -50,6 +51,12 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - The standard fs tools (`read`/`write`/`edit`) record locks automatically and enforce them; never register or edit entries by hand.
 - `read` locks are shared, `write` locks are exclusive. A conflicting fs call is denied with `FILE_IN_USE` until the holder releases it (or the 3/15-minute TTL expires). Locks are released when the fs call finishes.
 - `bash` and other shell commands are **not** covered by the guard.
+
+### multi_agent_member (member lifecycle)
+- `-h`: hand over a member. Leader only. Needs `sessionId`. Writes the handover mark and time on the member's claimed tasks (and the membership) so the member is allowed to archive; the leader cannot archive somebody else's conversation.
+- `-z`: archive yourself. Any member. Every task you claimed must be `done` with a `completionNote`, or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH (parked) and can only be restored by the leader.
+- `-g`: restore a member. Leader only. Needs `sessionId` and an unfinished (`todo`/`doing`) `taskId`; the task is assigned to the member, then the session is unarchived. Restoring without a task is refused.
+- Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
 ### multi_agent_message
 - `-l`: list messages (leader sees the whole group; members only their own).
@@ -64,7 +71,8 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`), work only on assigned tasks, set `-s taskId status=done` when done, reply to messages.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the exact lines a write added/removed; just work normally.
-6. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
+6. Finished a task? Mark it `done` with a completion note. No next task and the leader handed you over? Archive yourself (`multi_agent_member op="-z"`); the leader restores you (`op="-g"`) when a new task is available.
+7. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
 

@@ -1904,6 +1904,8 @@ function isFreshActivity(activity) {
       const [removeTarget, setRemoveTarget] = useState(null)
       const [addOpen, setAddOpen] = useState(false)
       const members = groupMembers(state, group.id)
+      const activeMembers = members.filter((membership) => !membership.archivedAt)
+      const archivedMembers = members.filter((membership) => membership.archivedAt)
       const leaderId = leaderOf(state, group.id)
 
       async function applyRole(member, role, takeOver = false) {
@@ -2000,9 +2002,9 @@ function isFreshActivity(activity) {
               'div',
               { className: 'ma-manage-head' },
               h('strong', null, 'Members and permissions'),
-              h('span', { className: 'ma-count-pill' }, `${members.length} members`),
+              h('span', { className: 'ma-count-pill' }, `${activeMembers.length} active${archivedMembers.length > 0 ? ` · ${archivedMembers.length} archived` : ''}`),
             ),
-            members.length === 0
+            activeMembers.length === 0
               ? h(EmptyBlock, {
                   icon: 'users',
                   title: 'No members yet',
@@ -2021,7 +2023,7 @@ function isFreshActivity(activity) {
               : h(
                   'div',
                   { className: 'ma-manage-list' },
-                  members.map((membership) => {
+                  activeMembers.map((membership) => {
                     const name = displayNameOf(byId, membership.sessionId)
                     const isLeader = membership.role === ROLE_LEADER
                     return h(
@@ -3976,6 +3978,7 @@ function isFreshActivity(activity) {
       const [description, setDescription] = useState(task ? task.description || '' : '')
       const [status, setStatus] = useState(task ? task.status : 'todo')
       const [assignee, setAssignee] = useState(task ? task.assigneeSessionId || '' : '')
+      const [completionNote, setCompletionNote] = useState(task ? task.completionNote || '' : '')
       const [saving, setSaving] = useState(false)
       const [error, setError] = useState(null)
       const titleRef = useRef(null)
@@ -3997,6 +4000,7 @@ function isFreshActivity(activity) {
             description: description.trim(),
             status,
             assigneeSessionId: assignee,
+            completionNote: completionNote.trim(),
           })
         } catch (caught) {
           setError(caught.message || 'Failed to save the task; try again later')
@@ -4054,6 +4058,20 @@ function isFreshActivity(activity) {
               onChange: (event) => setDescription(event.target.value),
             }),
             h('span', { className: 'ma-field-hint' }, `${description.trim().length}/600`),
+          ),
+          h(
+            'label',
+            { className: 'ma-field' },
+            h('span', { className: 'ma-field-label' }, 'Completion note', status === 'done' ? h('em', null, 'Required for done') : null),
+            h('textarea', {
+              className: 'ma-textarea',
+              value: completionNote,
+              maxLength: 600,
+              rows: 3,
+              placeholder: 'What was delivered, where the result lives, how it was verified.',
+              onChange: (event) => setCompletionNote(event.target.value),
+            }),
+            h('span', { className: 'ma-field-hint' }, `${completionNote.trim().length}/600`),
           ),
           h(
             'label',
@@ -4549,6 +4567,12 @@ function isFreshActivity(activity) {
                         : 'Unassigned',
                     ),
                     task.description ? h('p', { className: 'ma-task-desc' }, task.description) : null,
+                    task.completionNote
+                      ? h('p', { className: 'ma-task-note', title: task.completionNote }, `✓ ${task.completionNote}`)
+                      : null,
+                    task.handedOverAt
+                      ? h('span', { className: 'ma-task-handover' }, 'Handed over by leader')
+                      : null,
                   )
                 }),
               ),
@@ -5778,6 +5802,21 @@ function isFreshActivity(activity) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+.ma-task-note {
+  margin: 0;
+  color: var(--ma-text-2);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ma-task-handover { align-self: flex-start; font-size: 9px; padding: 1px 6px; border-radius: 999px; color: var(--ma-text-3); background: var(--ma-soft-strong); }
+.ma-archived { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.ma-archived-list { display: flex; flex-direction: column; gap: 4px; }
+.ma-archived-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px dashed var(--ma-border-strong); border-radius: 8px; background: var(--ma-soft); }
+.ma-archived-pill { font-size: 9px; padding: 1px 6px; border-radius: 999px; color: var(--ma-text-3); background: var(--ma-soft-strong); white-space: nowrap; }
 .ma-task-empty {
   position: absolute;
   inset: 0;
