@@ -5972,7 +5972,7 @@ window.__ModuleLoader__.load({
         }
       }
       if (translated === undefined || translated === text) return value
-      return value.replace(text, translated)
+      return value.replace(text, () => translated)
     }
 
     function maOwnedElement(element) {
