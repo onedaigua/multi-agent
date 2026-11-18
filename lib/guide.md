@@ -37,6 +37,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 `NOT_LEADER` / `NOT_IN_GROUP` (403) — wrong role; `GROUP_FULL` (409) — max sessions; `TASK_REQUIRED` / `NO_TASK_MODULE` / `TASK_ALREADY_ASSIGNED` (409) — spawn needs one free task; `TASK_CYCLE` / `TASK_EDGE_EXISTS` (409); `FILE_IN_USE` / `PENDING_REPLY` / `ACTIVITY_LIMIT` (409); `INVALID_*` (400); `*_NOT_FOUND` (404).
 
 ## User settings (UI)
+- Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
 - Max sessions per group (2–32, default 8).
 - Spawn model/reasoning: inherit leader (default) or a fixed model.
 - Token usage (UI only, no tool): group detail shows per-member totals, group total and integer share; server cache 15 s, refresh forces a recount.

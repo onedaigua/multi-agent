@@ -923,6 +923,101 @@ window.__ModuleLoader__.load({
       )
     }
 
+
+    function ActivityPanel({ group, state, byId }) {
+      const [showAll, setShowAll] = useState(false)
+      const [query, setQuery] = useState('')
+      const groupActivities = Array.isArray(state.activities)
+        ? state.activities.filter((activity) => activity.groupId === group.id)
+        : []
+      const locked = groupActivities.filter((activity) => activity.state === 'read' || activity.state === 'write')
+      const tokens = query.trim().split(/\s+/).filter(Boolean)
+      let member = ''
+      let limit = 0
+      for (const token of tokens) {
+        if (/^\d+$/.test(token)) limit = Math.max(1, Math.min(200, Number(token)))
+        else member = token
+      }
+      const matched = member
+        ? groupActivities.filter((activity) => activity.sessionId === member || activity.sessionId.startsWith(member))
+        : (showAll ? groupActivities : locked)
+      const visible = matched
+        .slice()
+        .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
+        .slice(0, limit > 0 ? limit : 30)
+      return h(
+        'section',
+        { className: 'ma-activity ma-activity-page', 'aria-label': '执行列表' },
+        h(
+          'div',
+          { className: 'ma-activity-head' },
+          h(
+            'div',
+            { className: 'ma-activity-title' },
+            h(Icon, { name: 'folder', size: 14 }),
+            h('strong', null, '执行列表'),
+            h(
+              'span',
+              { className: 'ma-count-pill' },
+              member
+                ? `${matched.length} 条记录`
+                : (showAll ? `${groupActivities.length} 条记录` : `${locked.length} 占用中`),
+            ),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'ma-btn ma-btn-ghost ma-btn-sm',
+              onClick: () => setShowAll((current) => !current),
+            },
+            showAll ? '只看占用中' : '显示全部',
+          ),
+        ),
+        h('input', {
+          type: 'text',
+          className: 'ma-activity-search',
+          value: query,
+          placeholder: '输入组员 ID 搜索全部记录，可加数字取最近条数',
+          'aria-label': '按组员 ID 搜索执行记录',
+          onChange: (event) => setQuery(event.target.value),
+        }),
+        visible.length === 0
+          ? h(
+              'p',
+              { className: 'ma-activity-empty' },
+              member
+                ? '这个组员没有匹配的执行记录。'
+                : (showAll
+                  ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
+                  : '当前没有文件被占用。'),
+            )
+          : h(
+              'ul',
+              { className: 'ma-activity-list' },
+              visible.map((activity) => {
+                const meta = ACTIVITY_STATE_META[activity.state] || ACTIVITY_STATE_META.read
+                const destination = activity.destination ? ` → ${activity.destination}` : ''
+                return h(
+                  'li',
+                  { key: activity.id, className: 'ma-activity-row' },
+                  h('span', { className: cx('ma-activity-state', `is-${meta.tone}`) }, meta.label),
+                  h(
+                    'span',
+                    { className: 'ma-activity-main' },
+                    h('strong', { title: activity.path }, activity.name || activity.path),
+                    h(
+                      'small',
+                      { title: activity.path },
+                      `${ACTIVITY_OP_LABEL[activity.op] || activity.op} · ${displayNameOf(byId, activity.sessionId)}${destination} · ${formatDateTime(activity.updatedAt)}`,
+                    ),
+                  ),
+                )
+              }),
+            ),
+      )
+    }
+
     function GroupDetail({ group, state, byId, busy, onEdit, onDelete, onRole, onRemove, onAddMembers, onManage, onMessages }) {
       const members = groupMembers(state, group.id)
       const leaderId = leaderOf(state, group.id)
@@ -1773,7 +1868,7 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function GroupManageDialog({ group, state, byId, workspaces = [], preferredCwd, store, onClose }) {
+    function GroupManageDialog({ group, state, byId, workspaces = [], preferredCwd, store, onClose, embedded = false }) {
       const [busy, setBusy] = useState(false)
       const [error, setError] = useState(null)
       const [notice, setNotice] = useState(null)
@@ -1838,34 +1933,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      return h(
-        Fragment,
-        null,
-        h(
-          Modal,
-          {
-            title: `管理「${group.name}」`,
-            description: '添加或移出成员，调整组长与成员权限。',
-            wide: true,
-            stacked: true,
-            onClose,
-            footer: h(
-              Fragment,
-              null,
-              h(
-                'button',
-                { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose },
-                '完成',
-              ),
-              h(
-                'button',
-                { type: 'button', className: 'ma-btn ma-btn-primary', onClick: () => setAddOpen(true) },
-                h(Icon, { name: 'plus', size: 14 }),
-                '添加成员',
-              ),
-            ),
-          },
-          h(
+      const panel = h(
             'div',
             { className: 'ma-manage' },
             h(
@@ -2063,8 +2131,49 @@ window.__ModuleLoader__.load({
                   error,
                 )
               : null,
-          ),
-        ),
+      )
+      return h(
+        Fragment,
+        null,
+        embedded
+          ? h(
+              'div',
+              { className: 'ma-embed ma-embed-manage' },
+              h(
+                'div',
+                { className: 'ma-embed-head' },
+                h('strong', null, `管理「${group.name}」`),
+                h(
+                  'button',
+                  { type: 'button', className: 'ma-btn ma-btn-primary ma-btn-sm', onClick: () => setAddOpen(true) },
+                  h(Icon, { name: 'plus', size: 14 }),
+                  '添加成员',
+                ),
+              ),
+              panel,
+            )
+          : h(
+              Modal,
+              {
+                title: `管理「${group.name}」`,
+                description: '添加或移出成员，调整组长与成员权限。',
+                wide: true,
+                stacked: true,
+                onClose,
+                footer: h(
+                  Fragment,
+                  null,
+                  h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, '完成'),
+                  h(
+                    'button',
+                    { type: 'button', className: 'ma-btn ma-btn-primary', onClick: () => setAddOpen(true) },
+                    h(Icon, { name: 'plus', size: 14 }),
+                    '添加成员',
+                  ),
+                ),
+              },
+              panel,
+            ),
         addOpen
           ? h(AddMembersDialog, {
               group,
@@ -2128,6 +2237,7 @@ window.__ModuleLoader__.load({
       canSwitchViewer = false,
       deliverInterjection,
       onClose,
+      embedded = false,
     }) {
       const members = groupMembers(state, group.id)
       const initialViewer =
@@ -2359,15 +2469,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      return h(
-        Modal,
-        {
-          title: `消息 · ${group.name}`,
-          description: '组内广播与私聊都通过插话送达目标对话；收到消息的成员需要回复。',
-          onClose,
-          wide: true,
-        },
-        h(
+      const shell = h(
           'div',
           { className: 'ma-msg-shell' },
           h(
@@ -2748,6 +2850,160 @@ window.__ModuleLoader__.load({
                   : '每个成员必须回复收到的消息；未回复时不能发送新消息。',
             ),
           ),
+        )
+      return embedded
+        ? h('div', { className: 'ma-embed ma-embed-messages' }, shell)
+        : h(
+            Modal,
+            {
+              title: `消息 · ${group.name}`,
+              description: '组内广播与私聊都通过插话送达目标对话；收到消息的成员需要回复。',
+              onClose,
+              wide: true,
+            },
+            shell,
+          )
+    }
+
+
+    const DETAIL_TABS = [
+      { id: 'manage', label: '管理组', icon: 'shield' },
+      { id: 'tasks', label: '组内任务', icon: 'folder' },
+      { id: 'messages', label: '消息列表', icon: 'message' },
+      { id: 'usage', label: '用量统计', icon: 'clock' },
+      { id: 'activity', label: '执行列表', icon: 'pencil' },
+    ]
+
+    function GroupDetailView({ group, state, byId, store, workspaces, deliverInterjection, onBack, onEdit, onDelete }) {
+      const [tab, setTab] = useState('manage')
+      const members = groupMembers(state, group.id)
+      const leaderId = leaderOf(state, group.id)
+      const taskCount = (state.tasks || []).filter((task) => task.groupId === group.id).length
+      const activityCount = (state.activities || []).filter((activity) => activity.groupId === group.id && (activity.state === 'read' || activity.state === 'write')).length
+      const counts = { manage: members.length, tasks: taskCount, messages: '', usage: '', activity: activityCount }
+      return h(
+        'div',
+        { className: 'ma-detail-view', style: { '--ma-c': group.color } },
+        h(
+          'div',
+          { className: 'ma-detail-view-head' },
+          h(
+            'button',
+            { type: 'button', className: 'ma-back-btn', onClick: onBack },
+            h(Icon, { name: 'arrowLeft', size: 14 }),
+            '全部分组',
+          ),
+          h(Avatar, { name: group.name, color: group.color, size: 44 }),
+          h(
+            'div',
+            { className: 'ma-detail-copy' },
+            h('h2', { title: group.name }, group.name),
+            h(
+              'p',
+              { className: cx('ma-detail-desc', !group.description && 'is-empty') },
+              group.description || '还没有填写分组说明。',
+            ),
+            h(
+              'div',
+              { className: 'ma-detail-meta' },
+              h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length} 位成员`),
+              h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? `组长 ${displayNameOf(byId, leaderId)}` : '组长空缺'),
+              h('span', null, `更新于 ${formatDate(group.updatedAt)}`),
+            ),
+          ),
+          h(
+            'div',
+            { className: 'ma-detail-tools' },
+            h(
+              'button',
+              { type: 'button', className: 'ma-icon-btn', title: '编辑分组', onClick: () => onEdit(group) },
+              h(Icon, { name: 'edit', size: 16 }),
+            ),
+            h(
+              'button',
+              { type: 'button', className: 'ma-icon-btn ma-icon-danger', title: '删除分组', onClick: () => onDelete(group) },
+              h(Icon, { name: 'trash', size: 16 }),
+            ),
+          ),
+        ),
+        h(
+          'div',
+          { className: 'ma-tabs', role: 'tablist' },
+          DETAIL_TABS.map((entry) =>
+            h(
+              'button',
+              {
+                key: entry.id,
+                type: 'button',
+                role: 'tab',
+                'aria-selected': tab === entry.id,
+                className: cx('ma-tab', tab === entry.id && 'is-active'),
+                onClick: () => setTab(entry.id),
+              },
+              h(Icon, { name: entry.icon, size: 14 }),
+              entry.label,
+              counts[entry.id] === '' ? null : h('span', { className: 'ma-tab-count' }, counts[entry.id]),
+            ),
+          ),
+        ),
+        h(
+          'div',
+          { className: 'ma-tab-body' },
+          tab === 'manage'
+            ? h(GroupManageDialog, {
+                group,
+                state,
+                byId,
+                workspaces: Array.isArray(workspaces) ? workspaces : [],
+                store,
+                onClose: () => {},
+                embedded: true,
+              })
+            : null,
+          tab === 'tasks' ? h(TaskBoard, { store, fixedGroupId: group.id, embedded: true }) : null,
+          tab === 'messages'
+            ? h(GroupMessagesDialog, {
+                group,
+                state,
+                byId,
+                viewerSessionId: USER_VIEWER_ID,
+                canSwitchViewer: true,
+                deliverInterjection,
+                onClose: () => {},
+                embedded: true,
+              })
+            : null,
+          tab === 'usage' ? h(TokenUsageSection, { group, byId }) : null,
+          tab === 'activity' ? h(ActivityPanel, { group, state, byId }) : null,
+        ),
+      )
+    }
+
+    function GroupCard({ group, state, byId, onClick }) {
+      const members = groupMembers(state, group.id)
+      const leaderId = leaderOf(state, group.id)
+      const taskCount = (state.tasks || []).filter((task) => task.groupId === group.id).length
+      return h(
+        'button',
+        { type: 'button', className: 'ma-group-card', style: { '--ma-c': group.color }, onClick },
+        h(
+          'div',
+          { className: 'ma-group-card-top' },
+          h(Avatar, { name: group.name, color: group.color, size: 38 }),
+          h(
+            'div',
+            { className: 'ma-group-card-copy' },
+            h('strong', { title: group.name }, group.name),
+            h('span', { title: group.description || '' }, group.description || '还没有填写说明'),
+          ),
+          h(Icon, { name: 'chevronRight', size: 16 }),
+        ),
+        h(
+          'div',
+          { className: 'ma-group-card-meta' },
+          h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length}/${group.maxSessions ?? 8} 成员`),
+          h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? displayNameOf(byId, leaderId) : '组长空缺'),
+          h('span', null, h(Icon, { name: 'folder', size: 13 }), `${taskCount} 个任务`),
         ),
       )
     }
@@ -2770,13 +3026,8 @@ window.__ModuleLoader__.load({
       const [query, setQuery] = useState('')
       const [selectedId, setSelectedId] = useState(null)
       const [editor, setEditor] = useState(null)
-      const [addTarget, setAddTarget] = useState(null)
-      const [manageTarget, setManageTarget] = useState(null)
-      const [messagesTarget, setMessagesTarget] = useState(null)
       const [deleteTarget, setDeleteTarget] = useState(null)
-      const [confirm, setConfirm] = useState(null)
       const [toast, setToast] = useState(null)
-      const [acting, setActing] = useState(false)
       const stats = statsOf(state)
 
       useEffect(() => {
@@ -2800,14 +3051,7 @@ window.__ModuleLoader__.load({
           })
       }, [state.groups, query])
 
-      const activeGroup =
-        groups.find((group) => group.id === selectedId) ||
-        (state.groups || []).find((group) => group.id === selectedId) ||
-        groups[0] ||
-        null
-      const messagesGroup =
-        (messagesTarget && (state.groups || []).find((group) => group.id === messagesTarget)) || null
-      const messagesViewerId = messagesGroup ? USER_VIEWER_ID : null
+      const selectedGroup = (state.groups || []).find((group) => group.id === selectedId) || null
 
       function showToast(message, tone = 'success') {
         setToast({ message, tone })
@@ -2828,60 +3072,12 @@ window.__ModuleLoader__.load({
       async function removeGroup() {
         if (!deleteTarget) return
         await store.mutate({ action: 'deleteGroup', groupId: deleteTarget.id })
+        if (selectedId === deleteTarget.id) setSelectedId(null)
         setDeleteTarget(null)
         showToast('分组已删除')
       }
 
-      async function performRole(member, role, takeover) {
-        if (!activeGroup) return
-        setActing(true)
-        try {
-          await store.mutate({
-            action: 'assign',
-            groupId: activeGroup.id,
-            sessionId: member.sessionId,
-            role,
-            takeover: takeover === true,
-          })
-          showToast(role === ROLE_LEADER ? '已设为组长' : '已转为成员')
-        } finally {
-          setActing(false)
-        }
-      }
-
-      async function requestRole(member, role) {
-        if (!activeGroup || acting) return
-        if (role === ROLE_LEADER) {
-          const leaderId = leaderOf(state, activeGroup.id)
-          if (leaderId && leaderId !== member.sessionId) {
-            setConfirm({ kind: 'takeover', member, leaderId })
-            return
-          }
-        }
-        try {
-          await performRole(member, role, false)
-        } catch (error) {
-          showToast(error.message || '操作失败，请稍后重试', 'error')
-        }
-      }
-
-      async function confirmTakeover() {
-        if (!confirm) return
-        await performRole(confirm.member, ROLE_LEADER, true)
-        setConfirm(null)
-      }
-
-      async function removeMember(member) {
-        if (!activeGroup) return
-        setActing(true)
-        try {
-          await store.mutate({ action: 'leave', groupId: activeGroup.id, sessionId: member.sessionId })
-          setConfirm(null)
-          showToast('已移出分组')
-        } finally {
-          setActing(false)
-        }
-      }
+      const loading = state.status === 'loading' && state.groups.length === 0
 
       return h(
         'section',
@@ -2893,29 +3089,39 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'ma-page-copy' },
             h('div', { className: 'ma-kicker' }, h('i', null), 'MULTI-AGENT'),
-            h('h1', null, 'Agent 分组'),
-            h('p', null, '按小组组织对话。每个对话可以同时加入多个小组，并在每个小组中拥有独立的组长或成员权限。'),
+            h('h1', null, selectedGroup ? selectedGroup.name : 'Agent 分组'),
+            h(
+              'p',
+              null,
+              selectedGroup
+                ? '管理成员与权限，查看组内任务、消息、用量与执行列表。'
+                : '按小组组织对话。进入分组后，在「管理组」「组内任务」「消息列表」「用量统计」「执行列表」之间切换。',
+            ),
           ),
-          h(
-            'button',
-            { type: 'button', className: 'ma-btn ma-btn-primary', onClick: () => setEditor({ mode: 'create' }) },
-            h(Icon, { name: 'plus', size: 16 }),
-            '新建分组',
-          ),
+          selectedGroup
+            ? null
+            : h(
+                'button',
+                { type: 'button', className: 'ma-btn ma-btn-primary', onClick: () => setEditor({ mode: 'create' }) },
+                h(Icon, { name: 'plus', size: 16 }),
+                '新建分组',
+              ),
         ),
-        h(
-          'div',
-          { className: 'ma-overview' },
-          h(StatItem, { icon: 'folder', value: stats.groups, label: '个分组' }),
-          h(StatItem, { icon: 'user', value: stats.sessions, label: '个对话已加入', tone: 'sky' }),
-          h(StatItem, { icon: 'crown', value: stats.leaders, label: '个组长席位', tone: 'amber' }),
-          h(
-            'div',
-            { className: 'ma-overview-note' },
-            h(Icon, { name: 'shield', size: 14 }),
-            '每组 1 位组长，成员不限',
-          ),
-        ),
+        selectedGroup
+          ? null
+          : h(
+              'div',
+              { className: 'ma-overview' },
+              h(StatItem, { icon: 'folder', value: stats.groups, label: '个分组' }),
+              h(StatItem, { icon: 'user', value: stats.sessions, label: '个对话已加入', tone: 'sky' }),
+              h(StatItem, { icon: 'crown', value: stats.leaders, label: '个组长席位', tone: 'amber' }),
+              h(
+                'div',
+                { className: 'ma-overview-note' },
+                h(Icon, { name: 'shield', size: 14 }),
+                '每组 1 位组长 · 任务与用量按组隔离',
+              ),
+            ),
         state.error
           ? h(
               'div',
@@ -2929,201 +3135,104 @@ window.__ModuleLoader__.load({
               ),
             )
           : null,
-        state.status === 'loading' && state.groups.length === 0
+        loading
           ? h(
               'div',
-              { className: 'ma-workspace is-loading', 'aria-busy': 'true' },
-              h(
-                'aside',
-                { className: 'ma-list-pane' },
-                h('div', { className: 'ma-skeleton ma-skeleton-title' }),
-                [0, 1, 2].map((key) => h('div', { key, className: 'ma-skeleton ma-skeleton-row' })),
-              ),
-              h(
-                'div',
-                { className: 'ma-detail-pane' },
-                h('div', { className: 'ma-skeleton ma-skeleton-detail' }),
-              ),
+              { className: 'ma-group-cards' },
+              [0, 1, 2].map((key) => h('div', { key, className: 'ma-skeleton ma-skeleton-card' })),
             )
-          : h(
-              'div',
-              { className: 'ma-workspace' },
-              h(
-                'aside',
-                { className: 'ma-list-pane', 'aria-label': '分组列表' },
-                h(
+          : selectedGroup
+            ? h(GroupDetailView, {
+                group: selectedGroup,
+                state,
+                byId,
+                store,
+                workspaces,
+                deliverInterjection,
+                onBack: () => setSelectedId(null),
+                onEdit: (group) => setEditor({ mode: 'edit', group }),
+                onDelete: (group) => setDeleteTarget(group),
+              })
+            : groups.length === 0
+              ? h(
                   'div',
-                  { className: 'ma-list-head' },
-                  h('strong', null, '全部分组'),
-                  h('span', { className: 'ma-count-pill' }, stats.groups),
-                ),
-                h(
-                  'label',
-                  { className: 'ma-search' },
-                  h(Icon, { name: 'search', size: 15 }),
-                  h('input', {
-                    value: query,
-                    placeholder: '搜索分组',
-                    'aria-label': '搜索分组',
-                    onChange: (event) => setQuery(event.target.value),
-                  }),
-                  query
+                  { className: 'ma-detail-empty' },
+                  h('div', { className: 'ma-detail-empty-art' }, h(GroupGlyph, { size: 34 })),
+                  h('h2', null, state.groups.length === 0 ? '从第一个分组开始' : '没有匹配的分组'),
+                  h(
+                    'p',
+                    null,
+                    state.groups.length === 0
+                      ? '给负责同一件事的 Agent 建一个小组，再在对话顶部认领组长或成员。'
+                      : '换一个关键词试试，或清空搜索。',
+                  ),
+                  state.groups.length === 0
                     ? h(
                         'button',
                         {
                           type: 'button',
-                          className: 'ma-search-clear',
-                          'aria-label': '清空搜索',
+                          className: 'ma-btn ma-btn-primary',
+                          onClick: () => setEditor({ mode: 'create' }),
+                        },
+                        h(Icon, { name: 'plus', size: 16 }),
+                        '创建第一个分组',
+                      )
+                    : h(
+                        'button',
+                        {
+                          type: 'button',
+                          className: 'ma-btn ma-btn-outline',
                           onClick: () => setQuery(''),
                         },
-                        h(Icon, { name: 'x', size: 12 }),
-                      )
-                    : null,
-                ),
-                groups.length === 0
-                  ? h(
-                      'div',
-                      { className: 'ma-list-empty' },
-                      h(Icon, { name: query ? 'search' : 'users', size: 22 }),
-                      h('strong', null, query ? '没有匹配的分组' : '还没有分组'),
-                      h(
-                        'p',
-                        null,
-                        query
-                          ? '换一个关键词试试。'
-                          : '创建小组后，在任意对话顶部选择加入。',
+                        '清空搜索',
                       ),
-                      query
-                        ? h(
-                            'button',
-                            { type: 'button', className: 'ma-btn ma-btn-outline ma-btn-sm', onClick: () => setQuery('') },
-                            '清空搜索',
-                          )
-                        : h(
-                            'button',
-                            {
-                              type: 'button',
-                              className: 'ma-btn ma-btn-primary ma-btn-sm',
-                              onClick: () => setEditor({ mode: 'create' }),
-                            },
-                            h(Icon, { name: 'plus', size: 14 }),
-                            '创建分组',
-                          ),
-                    )
-                  : h(
-                      'div',
-                      { className: 'ma-group-list' },
-                      groups.map((group) =>
-                        h(GroupRow, {
-                          key: group.id,
-                          group,
-                          state,
-                          selected: activeGroup && activeGroup.id === group.id,
-                          byId,
-                          onClick: () => setSelectedId(group.id),
-                        }),
-                      ),
+                )
+              : h(
+                  Fragment,
+                  null,
+                  h(
+                    'label',
+                    { className: 'ma-search ma-page-search' },
+                    h(Icon, { name: 'search', size: 15 }),
+                    h('input', {
+                      value: query,
+                      placeholder: '搜索分组',
+                      'aria-label': '搜索分组',
+                      onChange: (event) => setQuery(event.target.value),
+                    }),
+                    query
+                      ? h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'ma-search-clear',
+                            'aria-label': '清空搜索',
+                            onClick: () => setQuery(''),
+                          },
+                          h(Icon, { name: 'x', size: 12 }),
+                        )
+                      : null,
+                  ),
+                  h(
+                    'div',
+                    { className: 'ma-group-cards' },
+                    groups.map((group) =>
+                      h(GroupCard, {
+                        key: group.id,
+                        group,
+                        state,
+                        byId,
+                        onClick: () => setSelectedId(group.id),
+                      }),
                     ),
-                h(
-                  'div',
-                  { className: 'ma-list-foot' },
-                  h(Icon, { name: 'info', size: 13 }),
-                  h('span', null, '选中分组查看成员与权限'),
+                  ),
                 ),
-              ),
-              h(
-                'div',
-                { className: 'ma-detail-pane' },
-                activeGroup
-                  ? h(GroupDetail, {
-                      group: activeGroup,
-                      state,
-                      byId,
-                      busy: acting,
-                      onEdit: (group) => setEditor({ mode: 'edit', group }),
-                      onDelete: (group) => setDeleteTarget(group),
-                      onRole: requestRole,
-                      onRemove: (member) => setConfirm({ kind: 'remove', member }),
-                      onAddMembers: (group) => {
-                        setConfirm(null)
-                        setAddTarget(group)
-                      },
-                      onManage: (group) => setManageTarget(group),
-                      onMessages: (group) => setMessagesTarget(group.id),
-                    })
-                  : h(
-                      'div',
-                      { className: 'ma-detail-empty' },
-                      h(
-                        'div',
-                        { className: 'ma-detail-empty-art' },
-                        h(GroupGlyph, { size: 34 }),
-                      ),
-                      h('h2', null, state.groups.length === 0 ? '从第一个分组开始' : '选择一个分组'),
-                      h(
-                        'p',
-                        null,
-                        state.groups.length === 0
-                          ? '给负责同一件事的 Agent 建一个小组，再在对话顶部认领组长或成员。'
-                          : '在左侧列表中选择一个分组，查看成员、权限与角色。',
-                      ),
-                      state.groups.length === 0
-                        ? h(
-                            'button',
-                            {
-                              type: 'button',
-                              className: 'ma-btn ma-btn-primary',
-                              onClick: () => setEditor({ mode: 'create' }),
-                            },
-                            h(Icon, { name: 'plus', size: 16 }),
-                            '创建第一个分组',
-                          )
-                        : null,
-                    ),
-              ),
-            ),
         editor
           ? h(GroupEditor, {
               group: editor.mode === 'edit' ? editor.group : null,
               leaderCandidates,
               onClose: () => setEditor(null),
               onSave: saveGroup,
-            })
-          : null,
-        addTarget
-          ? h(AddMembersDialog, {
-              group: addTarget,
-              state,
-              byId,
-              workspaces: Array.isArray(workspaces) ? workspaces : [],
-              store,
-              onClose: () => setAddTarget(null),
-              onAdded: (count, role) => {
-                setAddTarget(null)
-                showToast(`已添加 ${count} 位${role === ROLE_LEADER ? '组长' : '成员'}`)
-              },
-            })
-          : null,
-        manageTarget
-          ? h(GroupManageDialog, {
-              group: (state.groups || []).find((group) => group.id === manageTarget.id) || manageTarget,
-              state,
-              byId,
-              workspaces: Array.isArray(workspaces) ? workspaces : [],
-              store,
-              onClose: () => setManageTarget(null),
-            })
-          : null,
-        messagesGroup && messagesViewerId
-          ? h(GroupMessagesDialog, {
-              key: messagesGroup.id,
-              group: messagesGroup,
-              state,
-              byId,
-              viewerSessionId: messagesViewerId,
-              canSwitchViewer: true,
-              deliverInterjection,
-              onClose: () => setMessagesTarget(null),
             })
           : null,
         deleteTarget
@@ -3140,58 +3249,8 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 null,
-                h('p', null, h('strong', null, deleteTarget.name), ' 及其成员关系将被移除。'),
+                h('p', null, h('strong', null, deleteTarget.name), ' 及其成员关系、任务与执行记录将被移除。'),
                 h('p', { className: 'ma-muted' }, '对话本身不会被删除，只是不再属于这个分组。'),
-              ),
-            )
-          : null,
-        confirm
-          ? h(
-              ConfirmDialog,
-              {
-                title: confirm.kind === 'takeover' ? '接管组长？' : '移出成员？',
-                description:
-                  confirm.kind === 'takeover'
-                    ? '组长席位每组只有一位。'
-                    : '移出后，对方可以重新加入。',
-                confirmLabel: confirm.kind === 'takeover' ? '确认接管' : '移出成员',
-                tone: confirm.kind === 'takeover' ? 'primary' : 'danger',
-                onClose: () => setConfirm(null),
-                onConfirm: () =>
-                  confirm.kind === 'takeover' ? confirmTakeover() : removeMember(confirm.member),
-              },
-              h(
-                'div',
-                null,
-                confirm.kind === 'takeover'
-                  ? h(
-                      Fragment,
-                      null,
-                      h(
-                        'p',
-                        null,
-                        '将 ',
-                        h('strong', null, displayNameOf(byId, confirm.member.sessionId)),
-                        ' 设为组长，现任组长 ',
-                        h('strong', null, displayNameOf(byId, confirm.leaderId)),
-                        ' 会自动转为成员。',
-                      ),
-                      h('p', { className: 'ma-muted' }, '两个对话都仍保留在这个分组中。'),
-                    )
-                  : h(
-                      Fragment,
-                      null,
-                      h(
-                        'p',
-                        null,
-                        '将 ',
-                        h('strong', null, displayNameOf(byId, confirm.member.sessionId)),
-                        ' 移出 ',
-                        h('strong', null, activeGroup ? activeGroup.name : '当前分组'),
-                        '。',
-                      ),
-                      h('p', { className: 'ma-muted' }, '该对话在其他分组中的角色不受影响。'),
-                    ),
               ),
             )
           : null,
@@ -4047,8 +4106,7 @@ window.__ModuleLoader__.load({
       return ordered
     }
 
-    function TaskBoard(props) {
-      const { store } = props
+    function TaskBoard({ store, fixedGroupId = '', embedded = false }) {
       const state = usePluginStore(store)
       const [editor, setEditor] = useState(null)
       const [deleteTarget, setDeleteTarget] = useState(null)
@@ -4060,9 +4118,9 @@ window.__ModuleLoader__.load({
       const cardRefs = useRef(new Map())
       const groups = state.groups || []
       const [groupId, setGroupId] = useState('')
-      const effectiveGroupId = groups.some((group) => group.id === groupId)
-        ? groupId
-        : (groups[0]?.id ?? '')
+      const effectiveGroupId = fixedGroupId
+        ? fixedGroupId
+        : (groups.some((group) => group.id === groupId) ? groupId : (groups[0]?.id ?? ''))
       const tasks = useMemo(
         () => (state.tasks || []).filter((task) => task.groupId === effectiveGroupId),
         [state.tasks, effectiveGroupId],
@@ -4249,7 +4307,7 @@ window.__ModuleLoader__.load({
 
       return h(
         'section',
-        { className: 'ma-page ma-task-page' },
+        { className: cx('ma-page ma-task-page', embedded && 'is-embedded') },
         h(
           'header',
           { className: 'ma-page-head' },
@@ -4311,6 +4369,19 @@ window.__ModuleLoader__.load({
             h('span', { className: 'ma-count-pill' }, `${tasks.length} 个任务`),
             h('span', { className: 'ma-count-pill' }, `${edges.length} 条连线`),
           ),
+          embedded
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'ma-btn ma-btn-primary ma-btn-sm',
+                  disabled: groups.length === 0,
+                  onClick: () => setEditor({ task: null }),
+                },
+                h(Icon, { name: 'plus', size: 14 }),
+                '新建任务',
+              )
+            : null,
           h(
             'span',
             { className: 'ma-task-hint' },
@@ -5771,6 +5842,68 @@ window.__ModuleLoader__.load({
   .ma-usage-row { grid-template-columns: minmax(0, 1fr) auto auto; }
   .ma-usage-bar { display: none; }
 }
+.ma-page-search { margin: 0 0 14px; max-width: 420px; }
+.ma-group-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ma-skeleton-card { height: 118px; border-radius: 14px; }
+.ma-group-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--ma-border);
+  border-radius: 14px;
+  background: var(--ma-surface);
+  color: var(--ma-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.ma-group-card:hover { border-color: color-mix(in srgb, var(--ma-c) 38%, var(--ma-border)); box-shadow: 0 6px 20px color-mix(in srgb, var(--ma-text) 7%, transparent); }
+.ma-group-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ma-group-card-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ma-group-card-copy strong { font-size: 14px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ma-group-card-copy span { color: var(--ma-text-3); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ma-group-card-top > svg { color: var(--ma-text-3); flex: 0 0 auto; }
+.ma-group-card-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--ma-text-3); font-size: 10.5px; }
+.ma-group-card-meta span { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.ma-back-btn { display:inline-flex; align-items:center; gap:4px; flex:0 0 auto; padding:5px 9px; border-radius:8px; border:1px solid var(--ma-border); background:var(--ma-soft); color:var(--ma-text-2); font-size:12px; cursor:pointer; }
+.ma-back-btn:hover { background:var(--ma-soft-strong); color:var(--ma-text); }
+.ma-detail-view { display: flex; flex-direction: column; gap: 14px; }
+.ma-detail-view-head { display: flex; align-items: flex-start; gap: 12px; }
+.ma-tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--ma-border); border-radius: 11px; background: var(--ma-soft); overflow-x: auto; }
+.ma-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ma-text-2);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ma-tab:hover { color: var(--ma-text); background: var(--ma-soft-strong); }
+.ma-tab.is-active { color: var(--ma-accent); background: var(--ma-surface); box-shadow: 0 1px 2px color-mix(in srgb, var(--ma-text) 8%, transparent); }
+.ma-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--ma-soft-strong); color: var(--ma-text-3); font-size: 10px; }
+.ma-tab-body { min-width: 0; }
+.ma-embed { min-width: 0; }
+.ma-embed-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ma-embed-head strong { font-size: 13px; }
+.ma-task-page.is-embedded { padding: 0; height: auto; max-height: none; overflow: visible; background: transparent; }
+.ma-task-page.is-embedded .ma-page-head { display: none; }
+.ma-task-page.is-embedded .ma-task-group { display: none; }
+.ma-task-page.is-embedded .ma-task-toolbar { margin-top: 0; }
+.ma-task-page.is-embedded .ma-task-canvas-scroll { max-height: none; border: 0; background: transparent; padding: 0; }
+@media (max-width: 900px) {
+  .ma-group-cards { grid-template-columns: 1fr; }
+}
 `
 
     function installStyles() {
@@ -5845,43 +5978,6 @@ window.__ModuleLoader__.load({
           )
         } catch (error) {
           console.error('[dsh-multi-agent] 无法注册侧栏入口：', error)
-          return () => {}
-        }
-        return typeof dispose === 'function' ? dispose : () => {}
-      })
-
-      ctx.slots.inject('main', () => {
-        let dispose
-        try {
-          dispose = ctx.slots.register(
-            {
-              name: 'main',
-              key: TASKS_PANEL_ID,
-              inject: () => ({ store }),
-            },
-            TaskBoard,
-          )
-        } catch (error) {
-          console.error('[dsh-multi-agent] 无法注册任务主页：', error)
-          return () => {}
-        }
-        return typeof dispose === 'function' ? dispose : () => {}
-      })
-
-      ctx.slots.inject('sidebar.panellist', () => {
-        let dispose
-        try {
-          dispose = ctx.slots.register(
-            {
-              name: 'sidebar.panellist',
-              id: TASKS_PANEL_ID,
-              order: 17,
-              label: () => '任务',
-            },
-            TaskGlyph,
-          )
-        } catch (error) {
-          console.error('[dsh-multi-agent] 无法注册任务侧栏入口：', error)
           return () => {}
         }
         return typeof dispose === 'function' ? dispose : () => {}
