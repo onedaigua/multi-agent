@@ -23,6 +23,15 @@ window.__ModuleLoader__.load({
     const ROLE_MEMBER = 'member'
     const USER_VIEWER_ID = '__user__'
     const USER_SENDER_NAME = 'User'
+const ACTIVITY_READ_TTL_MS = 3 * 60 * 1000
+const ACTIVITY_WRITE_TTL_MS = 15 * 60 * 1000
+
+function isFreshActivity(activity) {
+  const at = Date.parse(activity && activity.updatedAt)
+  if (!Number.isFinite(at)) return false
+  const ttl = activity && activity.state === 'write' ? ACTIVITY_WRITE_TTL_MS : ACTIVITY_READ_TTL_MS
+  return Date.now() - at <= ttl
+}
     const COLORS = ['#5b6cf9', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#64748b']
 
     const module = { exports: {} }
@@ -930,7 +939,7 @@ window.__ModuleLoader__.load({
       const groupActivities = Array.isArray(state.activities)
         ? state.activities.filter((activity) => activity.groupId === group.id)
         : []
-      const locked = groupActivities.filter((activity) => activity.state === 'read' || activity.state === 'write')
+      const locked = groupActivities.filter((activity) => (activity.state === 'read' || activity.state === 'write') && isFreshActivity(activity))
       const tokens = query.trim().split(/\s+/).filter(Boolean)
       let member = ''
       let limit = 0
@@ -1026,7 +1035,7 @@ window.__ModuleLoader__.load({
       const groupActivities = Array.isArray(state.activities)
         ? state.activities.filter((activity) => activity.groupId === group.id)
         : []
-      const lockedActivities = groupActivities.filter((activity) => activity.state === 'read' || activity.state === 'write')
+      const lockedActivities = groupActivities.filter((activity) => (activity.state === 'read' || activity.state === 'write') && isFreshActivity(activity))
       const activityTokens = activityQuery.trim().split(/\s+/).filter(Boolean)
       let activityMember = ''
       let activityLimit = 0
@@ -2879,7 +2888,7 @@ window.__ModuleLoader__.load({
       const members = groupMembers(state, group.id)
       const leaderId = leaderOf(state, group.id)
       const taskCount = (state.tasks || []).filter((task) => task.groupId === group.id).length
-      const activityCount = (state.activities || []).filter((activity) => activity.groupId === group.id && (activity.state === 'read' || activity.state === 'write')).length
+      const activityCount = (state.activities || []).filter((activity) => activity.groupId === group.id && (activity.state === 'read' || activity.state === 'write') && isFreshActivity(activity)).length
       const counts = { manage: members.length, tasks: taskCount, messages: '', usage: '', activity: activityCount }
       return h(
         'div',

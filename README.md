@@ -27,7 +27,7 @@ This version ships **Agent Groups**, **group messages**, **per-group task spaces
 - User messages have no session ID; member replies are recorded in the user console queue for the user to read.
 - Messages cannot cross groups, and private recipients must be members of the same group.
 - Group and message data live under the current DSH profile and survive restarts.
-- **Activity** tab: reading a file auto-registers a `read` lock, writing/editing auto-registers a `write` lock. Many `read` locks are allowed, `write` is exclusive, and conflicting fs tool calls are denied. The list shows who used, moved or copied which file and to which destination; only the creator or the leader may edit or delete an entry.
+- **Activity** tab: the standard fs tools (`read`/`write`/`edit`) record their `read`/`write` lock automatically before they run. Many `read` locks are allowed, `write` is exclusive, conflicting calls are denied, and read locks expire after 3 idle minutes and write locks after 15. The list shows who used which file, when, and whether it was read-only or read/write.
 - **Usage** tab: shows the group total and each member's accumulated token usage, sorted from highest to lowest with a share rounded to 1%; can be refreshed manually.
 
 ## AI onboarding skill
@@ -103,7 +103,7 @@ The plugin exposes group and message capabilities as agent tools. Whether a tool
 | `multi_agent_group` | All agents (management operations require leader) | `op`: `-n` create / `-j` join / `-x` leave / `-u` update / `-d` delete / `-a` add member / `-r` remove member / `-s` set role / `-t` candidates. Single entry point for the group lifecycle |
 | `multi_agent_create_member` | Leader only | Creates a fresh member session in the leader's current workspace; must bind one unassigned task (`taskId`); inherits model/reasoning by default, mirrors full access when the leader has it, no history; limited by the max session count |
 | `multi_agent_task` | Group members (writes require leader; status requires assignee or leader) | `op`: `-l` list / `-c` create / `-u` update and assign / `-d` delete / `-s` set status / `-x` connect / `-r` delete edge. Task space with assignees and a DAG of edges |
-| `multi_agent_activity` | Group members (update/delete require creator or leader) | `op`: `-l` list (`query` supports `-a`, `-s name`, `-m memberId`, trailing number for recent N) / `-c` register / `-u` update / `-d` delete. Execution list and file locks |
+| `multi_agent_activity` | Group members | `op`: `-l` list only (`query` supports `-a`, `-s name`, `-m memberId`, trailing number for recent N). File locks are created and refreshed automatically by the fs tools |
 | `multi_agent_message` | Group members | `op`: `-l` queue / `-s` send (broadcast or private) / `-r` reply. Delivered as `steer` interjections |
 
 **Quick recipes**
@@ -113,7 +113,7 @@ The plugin exposes group and message capabilities as agent tools. Whether a tool
 - Reply: `multi_agent_message({ "op": "-r", "content": "..." })`. Omit `messageId` when exactly one message awaits a reply.
 - Your full session ID: the first line of `multi_agent_groups`.
 - Tasks and status: `multi_agent_task({ "op": "-l" })` to list; leaders use `op="-c"` to create, `op="-u"` to assign, `op="-x"` to connect; assignees use `op="-s"` to update status.
-- File locks: `multi_agent_activity({ "op": "-l" })` lists active locks; `op="-c"` registers a read/write lock (read shared, write exclusive).
+- File locks: `multi_agent_activity({ "op": "-l" })` lists active locks; `read`/`write`/`edit` tool calls create and enforce the locks automatically (read shared, write exclusive, read expires after 3 idle minutes, write after 15).
 - Member history: `multi_agent_activity({ "op": "-l", "query": "-m session-xxx 5" })` returns that member's five most recent records.
 
 Broadcast and private messages never cross groups, and private recipients must be members of the same group.
