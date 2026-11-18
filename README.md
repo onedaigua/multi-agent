@@ -27,7 +27,7 @@ This version ships **Agent Groups**, **group messages**, **per-group task spaces
 - User messages have no session ID; member replies are recorded in the user console queue for the user to read.
 - Messages cannot cross groups, and private recipients must be members of the same group.
 - Group and message data live under the current DSH profile and survive restarts.
-- **Activity** tab: the standard fs tools (`read`/`write`/`edit`) record their `read`/`write` lock automatically before they run. Many `read` locks are allowed, `write` is exclusive, conflicting calls are denied. Locks are released as soon as the fs call finishes, and expire after 3 idle read / 15 idle write minutes as a fallback. The list shows who used which file, when, and whether it was read-only or read/write.
+- **Activity** tab: the standard fs tools (`read`/`write`/`edit`) record their `read`/`write` lock automatically before they run. Many `read` locks are allowed, `write` is exclusive, conflicting calls are denied. Locks are released as soon as the fs call finishes, and expire after 3 idle read / 15 idle write minutes as a fallback. The tab shows all records by default; every record has a short numeric ID, and clicking a write record expands the exact added/removed lines.
 - **Usage** tab: shows the group total and each member's accumulated token usage, sorted from highest to lowest with a share rounded to 1%; can be refreshed manually.
 
 ## AI onboarding skill
@@ -113,7 +113,7 @@ The plugin exposes group and message capabilities as agent tools. Whether a tool
 - Reply: `multi_agent_message({ "op": "-r", "content": "..." })`. Omit `messageId` when exactly one message awaits a reply.
 - Your full session ID: the first line of `multi_agent_groups`.
 - Tasks and status: `multi_agent_task({ "op": "-l" })` to list; leaders use `op="-c"` to create (e.g. `{ "op": "-c", "title": "Build parser", "status": "todo" }`), `op="-u"` to assign, `op="-x"` to connect; assignees use `op="-s"` to update status.
-- File locks: `multi_agent_activity({ "op": "-l" })` lists active locks; `read`/`write`/`edit` tool calls create and enforce the locks automatically (read shared, write exclusive, released when the call finishes, with 3/15-minute idle fallbacks).
+- File locks: `multi_agent_activity({ "op": "-l" })` lists active locks with short numeric IDs; `read`/`write`/`edit` tool calls create and enforce the locks automatically (read shared, write exclusive, released when the call finishes, with 3/15-minute idle fallbacks). Writes capture a line diff; `multi_agent_activity({ "op": "-d", "id": "<activity id>" })` returns the added/removed lines, and the Activity tab expands it on click.
 - Member history: `multi_agent_activity({ "op": "-l", "query": "-m session-xxx 5" })` returns that member's five most recent records.
 
 Broadcast and private messages never cross groups, and private recipients must be members of the same group.

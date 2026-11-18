@@ -936,12 +936,12 @@ function isFreshActivity(activity) {
 
 
     function ActivityPanel({ group, state, byId }) {
-      const [showAll, setShowAll] = useState(false)
       const [query, setQuery] = useState('')
+      const [expandedId, setExpandedId] = useState('')
       const groupActivities = Array.isArray(state.activities)
         ? state.activities.filter((activity) => activity.groupId === group.id)
         : []
-      const locked = groupActivities.filter((activity) => (activity.state === 'read' || activity.state === 'write') && isFreshActivity(activity))
+      const activeCount = groupActivities.filter((activity) => (activity.state === 'read' || activity.state === 'write') && isFreshActivity(activity)).length
       const tokens = query.trim().split(/\s+/).filter(Boolean)
       let member = ''
       let limit = 0
@@ -951,7 +951,7 @@ function isFreshActivity(activity) {
       }
       const matched = member
         ? groupActivities.filter((activity) => activity.sessionId === member || activity.sessionId.startsWith(member))
-        : (showAll ? groupActivities : locked)
+        : groupActivities
       const visible = matched
         .slice()
         .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
@@ -967,23 +967,9 @@ function isFreshActivity(activity) {
             { className: 'ma-activity-title' },
             h(Icon, { name: 'folder', size: 14 }),
             h('strong', null, 'Activity'),
-            h(
-              'span',
-              { className: 'ma-count-pill' },
-              member
-                ? `${matched.length} records`
-                : (showAll ? `${groupActivities.length} records` : `${locked.length} in use`),
-            ),
+            h('span', { className: 'ma-count-pill' }, `${groupActivities.length} records`),
           ),
-          h(
-            'button',
-            {
-              type: 'button',
-              className: 'ma-btn ma-btn-ghost ma-btn-sm',
-              onClick: () => setShowAll((current) => !current),
-            },
-            showAll ? 'In use only' : 'Show all',
-          ),
+          activeCount > 0 ? h('span', { className: 'ma-activity-active' }, `${activeCount} in use`) : null,
         ),
         h('input', {
           type: 'text',
@@ -999,9 +985,7 @@ function isFreshActivity(activity) {
               { className: 'ma-activity-empty' },
               member
                 ? 'No activity matches this member.'
-                : (showAll
-                  ? 'No activity yet. Entries appear here automatically when a member opens or edits a workspace file.'
-                  : 'No files are in use right now.'),
+                : 'No activity yet. Entries appear here automatically when a member reads or edits a workspace file.',
             )
           : h(
               'ul',
@@ -1009,20 +993,53 @@ function isFreshActivity(activity) {
               visible.map((activity) => {
                 const meta = ACTIVITY_STATE_META[activity.state] || ACTIVITY_STATE_META.read
                 const destination = activity.destination ? ` → ${activity.destination}` : ''
+                const expanded = expandedId === activity.id
+                const diff = activity.diff
                 return h(
                   'li',
-                  { key: activity.id, className: 'ma-activity-row' },
-                  h('span', { className: cx('ma-activity-state', `is-${meta.tone}`) }, meta.label),
+                  { key: activity.id, className: cx('ma-activity-row', expanded && 'is-open') },
                   h(
-                    'span',
-                    { className: 'ma-activity-main' },
-                    h('strong', { title: activity.path }, activity.name || activity.path),
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'ma-activity-toggle',
+                      'aria-expanded': expanded,
+                      onClick: () => setExpandedId(expanded ? '' : activity.id),
+                    },
+                    h('span', { className: cx('ma-activity-state', `is-${meta.tone}`) }, meta.label),
                     h(
-                      'small',
-                      { title: activity.path },
-                      `${ACTIVITY_OP_LABEL[activity.op] || activity.op} · ${displayNameOf(byId, activity.sessionId)}${destination} · ${formatDateTime(activity.updatedAt)}`,
+                      'span',
+                      { className: 'ma-activity-main' },
+                      h('strong', { title: activity.path }, activity.name || activity.path),
+                      h(
+                        'small',
+                        { title: activity.path },
+                        `${ACTIVITY_OP_LABEL[activity.op] || activity.op} · ${displayNameOf(byId, activity.sessionId)}${destination} · ${formatDateTime(activity.updatedAt)} · #${activity.id}`,
+                      ),
                     ),
+                    h(Icon, { name: expanded ? 'chevron' : 'chevronRight', size: 14, className: 'ma-activity-chevron' }),
                   ),
+                  expanded
+                    ? h(
+                        'div',
+                        { className: 'ma-activity-diff' },
+                        diff
+                          ? h(
+                              Fragment,
+                              null,
+                              h('div', { className: 'ma-activity-diff-head' }, `Added ${diff.addedCount} / removed ${diff.removedCount} line(s)${diff.truncated ? ' (truncated)' : ''}`),
+                              h(
+                                'pre',
+                                { className: 'ma-activity-diff-body' },
+                                [
+                                  ...diff.removed.map((line) => `- ${line}`),
+                                  ...diff.added.map((line) => `+ ${line}`),
+                                ].join('\n'),
+                              ),
+                            )
+                          : h('p', { className: 'ma-activity-diff-empty' }, 'No captured line change for this record.'),
+                      )
+                    : null,
                 )
               }),
             ),
@@ -5824,6 +5841,15 @@ function isFreshActivity(activity) {
 .ma-activity-empty { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ma-text-3); }
 .ma-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ma-activity-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); }
+.ma-activity-row.is-open { border-color: var(--ma-border-strong); }
+.ma-activity-toggle { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ma-activity-toggle:focus-visible { outline: 2px solid var(--ma-accent); outline-offset: 2px; border-radius: 6px; }
+.ma-activity-chevron { flex: none; margin-top: 2px; color: var(--ma-text-3); }
+.ma-activity-active { font-size: 10px; color: var(--ma-text-3); white-space: nowrap; }
+.ma-activity-diff { margin-top: 6px; padding: 8px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-soft); }
+.ma-activity-diff-head { font-size: 10.5px; color: var(--ma-text-2); margin-bottom: 6px; }
+.ma-activity-diff-body { margin: 0; max-height: 220px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--ma-text); }
+.ma-activity-diff-empty { margin: 0; font-size: 10.5px; color: var(--ma-text-3); }
 .ma-activity-state { flex: none; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 600; line-height: 1.6; }
 .ma-activity-state.is-read { color: var(--ma-text-2); background: var(--ma-soft); }
 .ma-activity-state.is-write { color: #b45309; background: color-mix(in srgb, #f59e0b 14%, transparent); }
