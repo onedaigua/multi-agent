@@ -796,9 +796,8 @@ window.__ModuleLoader__.load({
     }
 
     const ACTIVITY_STATE_META = {
-      using: { label: '使用中', tone: 'using' },
-      viewing: { label: '仅查看', tone: 'viewing' },
-      modified: { label: '已修改', tone: 'modified' },
+      read: { label: '只读', tone: 'read' },
+      write: { label: '读写', tone: 'write' },
     }
     const ACTIVITY_OP_LABEL = { open: '使用', move: '移动', copy: '复制' }
 
@@ -932,7 +931,7 @@ window.__ModuleLoader__.load({
       const groupActivities = Array.isArray(state.activities)
         ? state.activities.filter((activity) => activity.groupId === group.id)
         : []
-      const usingActivities = groupActivities.filter((activity) => activity.state === 'using')
+      const lockedActivities = groupActivities.filter((activity) => activity.state === 'read' || activity.state === 'write')
       const activityTokens = activityQuery.trim().split(/\s+/).filter(Boolean)
       let activityMember = ''
       let activityLimit = 0
@@ -942,7 +941,7 @@ window.__ModuleLoader__.load({
       }
       const matchedActivities = activityMember
         ? groupActivities.filter((activity) => activity.sessionId === activityMember || activity.sessionId.startsWith(activityMember))
-        : (showAllActivities ? groupActivities : usingActivities)
+        : (showAllActivities ? groupActivities : lockedActivities)
       const visibleActivities = matchedActivities
         .slice()
         .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
@@ -1171,7 +1170,7 @@ window.__ModuleLoader__.load({
                 { className: 'ma-count-pill' },
                 activityMember
                   ? `${matchedActivities.length} 条记录`
-                  : (showAllActivities ? `${groupActivities.length} 条记录` : `${usingActivities.length} 使用中`),
+                  : (showAllActivities ? `${groupActivities.length} 条记录` : `${lockedActivities.length} 占用中`),
               ),
             ),
             h(
@@ -1181,7 +1180,7 @@ window.__ModuleLoader__.load({
                 className: 'ma-btn ma-btn-ghost ma-btn-sm',
                 onClick: () => setShowAllActivities((current) => !current),
               },
-              showAllActivities ? '只看使用中' : '显示全部',
+              showAllActivities ? '只看占用中' : '显示全部',
             ),
           ),
           h('input', {
@@ -1200,13 +1199,13 @@ window.__ModuleLoader__.load({
                   ? '这个组员没有匹配的执行记录。'
                   : (showAllActivities
                     ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
-                    : '当前没有成员正在使用文件。'),
+                    : '当前没有文件被占用。'),
               )
             : h(
                 'ul',
                 { className: 'ma-activity-list' },
                 visibleActivities.map((activity) => {
-                  const meta = ACTIVITY_STATE_META[activity.state] || ACTIVITY_STATE_META.viewing
+                  const meta = ACTIVITY_STATE_META[activity.state] || ACTIVITY_STATE_META.read
                   const destination = activity.destination ? ` → ${activity.destination}` : ''
                   return h(
                     'li',
@@ -5742,9 +5741,8 @@ window.__ModuleLoader__.load({
 .ma-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ma-activity-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); }
 .ma-activity-state { flex: none; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 600; line-height: 1.6; }
-.ma-activity-state.is-using { color: #b45309; background: color-mix(in srgb, #f59e0b 14%, transparent); }
-.ma-activity-state.is-viewing { color: var(--ma-text-2); background: var(--ma-soft); }
-.ma-activity-state.is-modified { color: #1d4ed8; background: color-mix(in srgb, #3b82f6 12%, transparent); }
+.ma-activity-state.is-read { color: var(--ma-text-2); background: var(--ma-soft); }
+.ma-activity-state.is-write { color: #b45309; background: color-mix(in srgb, #f59e0b 14%, transparent); }
 .ma-activity-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .ma-activity-main strong { font-size: 11px; color: var(--ma-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ma-activity-main small { font-size: 9.5px; color: var(--ma-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

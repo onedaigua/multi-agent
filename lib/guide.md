@@ -13,7 +13,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - `multi_agent_group` — `-n` create (you become leader); `-j` join (`groupId`, `role`, `takeover`); `-x` leave (omit `groupId` to leave all); `-u` update name/description/color; `-d` delete; `-a` add member; `-r` remove member; `-s` set role; `-t` list candidates. `-u/-d/-a/-r/-s` require leader.
 - `multi_agent_create_member` (leader) — create a fresh session in the leader's workspace and bind it to one unassigned task. Params: `name` (2–24 chars, required), `taskId` (required), `groupId` (optional). No history is inherited; model/reasoning follow the group spawn config (default: inherit leader). Respects the max-sessions limit.
 - `multi_agent_task` — `-l` list tasks and edges; `-c` create; `-u` update (assign `assigneeSessionId`; empty string clears it); `-d` delete (also removes its edges); `-s` set status (`todo|doing|done`; assignee or leader only); `-x` connect (`from`,`to`); `-r` delete edge (`edgeId`). `-c/-u/-d/-x/-r` require leader. Edges form a DAG: cycles are rejected.
-- `multi_agent_activity` — `-l` list (default: in use only; `query`: `-a` all, `-s name` match, `-m <sessionId>` all records of one member; a trailing number 1–200 keeps only the latest N); `-c` create (`path`,`state`,`operation`, optional `destination`/`note`); `-u` update; `-d` delete. Members may view/create; only the creator or leader may update/delete. Creating a non-viewing record for a file another member is using returns 409 `FILE_IN_USE`.
+- `multi_agent_activity` — `-l` list (default: active locks; `query`: `-a` all, `-s name`, `-m <sessionId>`, trailing number 1–200); `-c` create (`path`, `state`: `read`|`write`, `operation`, optional `destination`/`note`); `-u` update; `-d` delete. Members may view/create; only the creator or leader may update/delete. Locking: many `read` allowed, one `write` at a time; a conflicting registration is rejected with 409 `FILE_IN_USE`, and the fs tool call itself is denied until the lock can be taken.
 - `multi_agent_message` — `-l` list; `-s` send (broadcast by default; `mode="private"` + `recipientSessionId` for a DM); `-r` reply. Reply to pending messages before sending new ones.
 
 ## Workflow
@@ -21,7 +21,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 2. Leader: split the work into task modules (`multi_agent_task -c`) before spawning; each spawned session must bind one unassigned task.
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x`).
 4. Member: read tasks (`-l`); work only on tasks assigned to you; set `-s done` when finished; reply to messages.
-5. Before editing a shared file: check `multi_agent_activity -l`, register `using` with `-c`; when done set `modified` or delete the record. For moves/copies use `operation="move|copy"` + `destination`.
+5. Shared files are locked automatically: `read` (shared) or `write` (exclusive). Conflicting `read`/`write`/`edit` calls are denied; use `-l` to see holders and delete your record when done. For moves/copies use `operation="move|copy"` + `destination`.
 6. Report results to the leader by DM; the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
