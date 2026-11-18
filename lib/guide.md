@@ -22,7 +22,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - `-u`: edit `name`/`description`/`color`. Leader only.
 - `-d`: delete the group. Leader only.
 - `-a`: add a member. Needs `groupId` (or single-group fallback), `sessionId`; optional `role`.
-- `-r`: remove a member. Needs `sessionId`. Leader only.
+- `-r`: remove a member. Needs `sessionId`. Leader only; you cannot remove yourself — use `-x` to leave.
 - `-s`: change a role. Needs `sessionId` and `role`. Leader only.
 - `-t`: list sessions in the current workspace that can still join.
 
@@ -36,8 +36,8 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 
 ### multi_agent_task
 - `-l`: list tasks and edges (any member).
-- `-c`: create. Needs `title` (1–80) **and** `status` (`todo`|`doing`|`done`). Leader only.
-- `-u`: edit. Needs `taskId`; pass `title`, `description`, `status`, `assigneeSessionId` (empty string clears it) as needed. Leader only.
+- `-c`: create. Needs `title` (1–80); `status` (`todo`|`doing`|`done`) defaults to `todo`, and `status="done"` also needs `completionNote`. Leader only.
+- `-u`: edit. Needs `taskId`; pass `title`, `description`, `status`, `completionNote`, `assigneeSessionId` (empty string clears it) as needed. Leader only; a leader may assign a card to itself.
 - `-d`: delete. Needs `taskId`; its edges go too. Leader only.
 - `-s`: set status. Needs `taskId` and `status`; allowed for the assignee or the leader. Marking a task `done` requires a non-empty `completionNote` (pass it with `-s` or `-u`).
 - A task that is `done` with a completion note is a permanent record: nobody can delete it (tool returns `TASK_LOCKED`), and every member can list it.
@@ -54,13 +54,13 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 
 ### multi_agent_member (member lifecycle)
 - `-h`: hand over a member. Leader only. Needs `sessionId`. Writes the handover mark and time on the member's claimed tasks (and the membership) so the member is allowed to archive; the leader cannot archive somebody else's conversation.
-- `-z`: archive yourself. Any member. Every task you claimed must be `done` with a `completionNote`, or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH (parked) and can only be restored by the leader.
-- `-g`: restore a member. Leader only. Needs `sessionId` and an unfinished (`todo`/`doing`) `taskId`; the task is assigned to the member, then the session is unarchived. Restoring without a task is refused.
+- `-z`: archive yourself. Members only (the leader cannot archive itself). Every task you claimed must be `done` with a `completionNote`, or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH when the runtime allows and can only be restored by the leader.
+- `-g`: restore a member. Leader only. Needs `sessionId` and an unfinished (`todo`/`doing`) `taskId` not assigned to somebody else; the task is assigned to the member, then the session is unarchived. Restoring without a task is refused.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
 ### multi_agent_message
 - `-l`: list messages (leader sees the whole group; members only their own).
-- `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` + `recipientSessionId` (optional when exactly one other member exists).
+- `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`).
 - `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the error lists candidates).
 - Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait.
 - A sender with pending replies must reply first; messages cannot cross groups; each delivery can be answered once.
@@ -86,13 +86,14 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 ## Common errors
 - `NOT_LEADER` / `NOT_IN_GROUP` (403): wrong role.
 - `GROUP_FULL` (409): member limit reached.
-- `TASK_REQUIRED` / `NO_TASK_MODULE` / `TASK_ALREADY_ASSIGNED` (409): spawn needs one free task module.
+- `TASK_REQUIRED` (400) / `NO_TASK_MODULE` / `TASK_ALREADY_ASSIGNED` (409): spawn needs one free task module.
 - `INVALID_STATUS` (400): status must be todo/doing/done (task create needs it too).
 - `TASK_CYCLE` / `TASK_EDGE_EXISTS` / `TASK_LIMIT` / `TASK_EDGE_LIMIT` (409).
 - `FILE_IN_USE` (409): file locked; `PENDING_REPLY` (409): reply first.
 - `NEED_RECIPIENT` / `NEED_MESSAGE_ID` (400): private DM or reply needs an id.
 - `ALREADY_REPLIED` / `NOT_RECIPIENT` (409/403).
 - `INVALID_*` (400); `*_NOT_FOUND` (404); `SESSION_SERVICE` (503): session service unavailable.
+- Member lifecycle: `NOTE_REQUIRED` / `HANDOVER_REQUIRED` / `TASK_LOCKED` / `ALREADY_ARCHIVED` / `NOT_ARCHIVED` / `CANNOT_HANDOVER_LEADER` / `CANNOT_ARCHIVE_LEADER` (400/409).
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
