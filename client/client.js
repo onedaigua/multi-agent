@@ -4660,6 +4660,11 @@ function isFreshActivity(activity) {
   margin: 0 auto;
   padding: 28px 32px 48px;
   box-sizing: border-box;
+  /* The page is a flex item of the hosts main panel. Without an explicit
+     zero min-width a nowrap child (the overview stats) sets its min-content
+     width and the page overflows a phone viewport instead of shrinking. */
+  min-width: 0;
+  width: 100%;
 }
 .ma-page *, .ma-panel *, .ma-overlay *, .ma-trigger * { box-sizing: border-box; }
 .ma-page-head { display: flex; align-items: flex-start; gap: 24px; }
@@ -5947,6 +5952,9 @@ function isFreshActivity(activity) {
 .ma-group-card {
   display: flex;
   flex-direction: column;
+  /* The host styles buttons with align-items:flex-start; without the stretch
+     the card rows size to their max-content and push past the card edge. */
+  align-items: stretch;
   gap: 12px;
   padding: 14px;
   border: 1px solid var(--ma-border);
@@ -6026,6 +6034,38 @@ function isFreshActivity(activity) {
   .ma-embed-head { flex-wrap: wrap; }
   .ma-detail-view-head { gap: 10px; }
   .ma-detail-copy h2 { font-size: 17px; }
+  /* A phone has no room for the back button, the avatar and the copy on one
+     line: give the navigation its own row and let the title take the width. */
+  .ma-group-cards { grid-template-columns: minmax(0, 1fr); }
+  .ma-group-card { min-width: 0; }
+  .ma-detail-view-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "back tools" "avatar copy";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 10px;
+  }
+  .ma-detail-view-head > .ma-back-btn { grid-area: back; justify-self: start; }
+  .ma-detail-view-head > .ma-avatar { grid-area: avatar; }
+  .ma-detail-view-head > .ma-detail-copy { grid-area: copy; }
+  .ma-detail-view-head > .ma-detail-tools { grid-area: tools; justify-self: end; margin-left: 0; }
+  /* The message header carries four items; on a phone the viewer picker and the
+     access badge belong on their own row instead of pushing the badge off the
+     right edge. */
+  .ma-msg-identity {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "avatar copy access" "viewer viewer viewer";
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 8px;
+  }
+  .ma-msg-identity > .ma-avatar { grid-area: avatar; }
+  .ma-msg-identity-copy { grid-area: copy; }
+  .ma-msg-viewer { grid-area: viewer; min-width: 0; }
+  .ma-msg-viewer select { width: 100%; max-width: none; }
+  .ma-msg-access { grid-area: access; justify-self: end; }
 }
 `
 
