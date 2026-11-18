@@ -956,6 +956,17 @@ function isFreshActivity(activity) {
         .slice()
         .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
         .slice(0, limit > 0 ? limit : 30)
+      const diffLine = (sign, entry, index) => {
+        const text = typeof entry === 'string' ? entry : entry && typeof entry.text === 'string' ? entry.text : ''
+        const no = typeof entry === 'object' && entry && entry.line > 0 ? String(entry.line) : '·'
+        return h(
+          'div',
+          { key: `${sign}-${index}-${no}`, className: cx('ma-diff-line', sign === '-' ? 'is-removed' : 'is-added') },
+          h('span', { className: 'ma-diff-no' }, no),
+          h('span', { className: 'ma-diff-sign' }, sign),
+          h('span', { className: 'ma-diff-text' }, text),
+        )
+      }
       return h(
         'section',
         { className: 'ma-activity ma-activity-page', 'aria-label': 'Activity' },
@@ -1029,15 +1040,16 @@ function isFreshActivity(activity) {
                               null,
                               h('div', { className: 'ma-activity-diff-head' }, `Added ${diff.addedCount} / removed ${diff.removedCount} line(s)${diff.truncated ? ' (truncated)' : ''}`),
                               h(
-                                'pre',
+                                'div',
                                 { className: 'ma-activity-diff-body' },
                                 [
-                                  ...diff.removed.map((line) => `- ${line}`),
-                                  ...diff.added.map((line) => `+ ${line}`),
-                                ].join('\n'),
+                                  ...(Array.isArray(diff.removed) ? diff.removed.map((entry, index) => diffLine('-', entry, index)) : []),
+                                  ...(Array.isArray(diff.added) ? diff.added.map((entry, index) => diffLine('+', entry, index)) : []),
+                                ],
                               ),
+                              diff.truncated ? h('p', { className: 'ma-activity-diff-note' }, 'Showing the first lines only.') : null,
                             )
-                          : h('p', { className: 'ma-activity-diff-empty' }, 'No captured line change for this record.'),
+                          : h('p', { className: 'ma-activity-diff-empty' }, activity.state === 'write' ? 'No line change was captured for this write (the file may have been unchanged or the call failed).' : 'Read access only; no line change.'),
                       )
                     : null,
                 )
@@ -5879,7 +5891,7 @@ function isFreshActivity(activity) {
 .ma-activity-title strong { font-size: 12px; color: var(--ma-text); }
 .ma-activity-empty { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ma-text-3); }
 .ma-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.ma-activity-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); }
+.ma-activity-row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 7px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); }
 .ma-activity-row.is-open { border-color: var(--ma-border-strong); }
 .ma-activity-toggle { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .ma-activity-toggle:focus-visible { outline: 2px solid var(--ma-accent); outline-offset: 2px; border-radius: 6px; }
@@ -5887,7 +5899,16 @@ function isFreshActivity(activity) {
 .ma-activity-active { font-size: 10px; color: var(--ma-text-3); white-space: nowrap; }
 .ma-activity-diff { margin-top: 6px; padding: 8px 9px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-soft); }
 .ma-activity-diff-head { font-size: 10.5px; color: var(--ma-text-2); margin-bottom: 6px; }
-.ma-activity-diff-body { margin: 0; max-height: 220px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--ma-text); }
+.ma-activity-diff-body { margin: 0; max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 1px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; line-height: 1.5; }
+.ma-diff-line { display: flex; align-items: flex-start; gap: 6px; padding: 1px 4px; border-radius: 4px; }
+.ma-diff-line.is-added { background: rgba(46, 160, 67, 0.12); color: var(--ma-text); }
+.ma-diff-line.is-removed { background: rgba(207, 34, 46, 0.12); color: var(--ma-text); }
+.ma-diff-no { flex: none; width: 40px; text-align: right; color: var(--ma-text-3); user-select: none; }
+.ma-diff-sign { flex: none; width: 10px; text-align: center; font-weight: 700; }
+.ma-diff-line.is-added .ma-diff-sign { color: #2ea043; }
+.ma-diff-line.is-removed .ma-diff-sign { color: #cf222e; }
+.ma-diff-text { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+.ma-activity-diff-note { margin: 4px 0 0; font-size: 10px; color: var(--ma-text-3); }
 .ma-activity-diff-empty { margin: 0; font-size: 10.5px; color: var(--ma-text-3); }
 .ma-activity-state { flex: none; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 600; line-height: 1.6; }
 .ma-activity-state.is-read { color: var(--ma-text-2); background: var(--ma-soft); }
