@@ -101,10 +101,10 @@ The plugin exposes group and message capabilities as agent tools. Whether a tool
 | --- | --- | --- |
 | `multi_agent_groups` | All agents | `op`: `-l` list (default) / `-m` members / `-c` candidate sessions. Shows your session ID, groups, roles, leader and members |
 | `multi_agent_group` | All agents (management operations require leader) | `op`: `-n` create (`name` required) / `-j` join (leader role with an existing leader needs `takeover`) / `-x` leave (omit `groupId` for all) / `-u` update / `-d` delete / `-a` add member (`sessionId`) / `-r` remove member (`sessionId`) / `-s` set role (`sessionId` + `role`) / `-t` candidates. Single entry point for the group lifecycle |
-| `multi_agent_create_member` | Leader only | Creates a fresh member session in the leader's current workspace; must bind one unassigned task (`taskId`); inherits model/reasoning by default, mirrors full access when the leader has it, no history; limited by the max session count |
+| `multi_agent_create_member` | Leader only | Creates a fresh member agent in the leader's current workspace (a DSH subagent when available, else a plain session); must bind one unassigned task (`taskId`); inherits model/reasoning by default, mirrors full access when the leader has it, no history; limited by the max session count |
 | `multi_agent_task` | Group members (writes require leader; status requires assignee or leader) | `op`: `-l` list / `-c` create (`title` + `status` required) / `-u` update and assign (`taskId`) / `-d` delete (`taskId`) / `-s` set status (`taskId` + `status`) / `-x` connect (`from`, `to`) / `-r` delete edge (`edgeId`). Task space with assignees and a DAG of edges |
 | `multi_agent_activity` | Group members | `op`: `-l` list only (`query` supports `-a`, `-s name`, `-m memberId`, trailing number for recent N). File locks are created and refreshed automatically by the fs tools |
-| `multi_agent_message` | Group members | `op`: `-l` queue / `-s` send (`content` required; broadcast or private) / `-r` reply (`content` required; `messageId` optional when one reply is pending). Delivered as `steer` interjections |
+| `multi_agent_message` | Group members | `op`: `-l` queue / `-s` send (`content` required; broadcast or private) / `-r` reply (`content` required; `messageId` optional when one reply is pending). Delivered as non-blocking DSH agent notifications |
 
 **Quick recipes**
 

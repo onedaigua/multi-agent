@@ -27,11 +27,12 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - `-t`: list sessions in the current workspace that can still join.
 
 ### multi_agent_create_member (leader)
-Create a fresh session in the leader's workspace and bind it to one unassigned task.
+Create a fresh agent in the leader's workspace and bind it to one unassigned task. The agent is spawned as a DSH subagent of the leader when the runtime supports it; otherwise a plain session is created.
 - `name` (required, ≤24 chars), `taskId` (required), `groupId` (optional when you lead one group).
 - Requires a free task module and a free member slot (`maxSessions`).
 - No history is inherited; model/reasoning come from the group spawn config (default: inherit leader).
-- The new session joins as a member and becomes the task assignee.
+- The new agent runs one short setup turn (loads the guide), then stays idle.
+- It joins as a member and becomes the task assignee.
 
 ### multi_agent_task
 - `-l`: list tasks and edges (any member).
@@ -53,6 +54,7 @@ Create a fresh session in the leader's workspace and bind it to one unassigned t
 - `-l`: list messages (leader sees the whole group; members only their own).
 - `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` + `recipientSessionId` (optional when exactly one other member exists).
 - `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the error lists candidates).
+- Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait.
 - A sender with pending replies must reply first; messages cannot cross groups; each delivery can be answered once.
 
 ## Workflow
@@ -61,7 +63,7 @@ Create a fresh session in the leader's workspace and bind it to one unassigned t
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`), work only on assigned tasks, set `-s taskId status=done` when done, reply to messages.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders; just work normally.
-6. Report results to the leader by DM; the leader reports to the user.
+6. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
 
