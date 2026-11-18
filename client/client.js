@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
     const ROLE_LEADER = 'leader'
     const ROLE_MEMBER = 'member'
     const USER_VIEWER_ID = '__user__'
-    const USER_SENDER_NAME = '用户'
+    const USER_SENDER_NAME = 'User'
     const COLORS = ['#5b6cf9', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#64748b']
 
     const module = { exports: {} }
@@ -66,20 +66,20 @@ window.__ModuleLoader__.load({
     }
 
     function roleLabel(role) {
-      return role === ROLE_LEADER ? '组长' : '成员'
+      return role === ROLE_LEADER ? 'leader' : 'member'
     }
 
     function displayNameOf(byId, sessionId) {
       const summary = byId && byId[sessionId]
       const title = summary && typeof summary.displayTitle === 'string' ? summary.displayTitle.trim() : ''
       if (title && title !== sessionId) return title
-      return `对话 ${shortId(sessionId)}`
+      return `Conversation ${shortId(sessionId)}`
     }
 
     const NOOP_HOOK = () => null
 
     function workspaceName(path) {
-      if (!path) return '当前工作区'
+      if (!path) return 'Current workspace'
       const parts = String(path).replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean)
       return parts[parts.length - 1] || String(path)
     }
@@ -260,7 +260,7 @@ window.__ModuleLoader__.load({
     }
 
     function Avatar({ name, color = '#5b6cf9', size = 36, muted = false }) {
-      const initial = (name || '组').trim().slice(0, 1) || '组'
+      const initial = (name || 'G').trim().slice(0, 1) || 'G'
       return h(
         'span',
         {
@@ -303,7 +303,7 @@ window.__ModuleLoader__.load({
           },
         })
       } catch {
-        throw requestError('无法连接分组服务，请确认插件已加载完成', 'NETWORK')
+        throw requestError('Cannot connect to the group service; make sure the plugin finished loading', 'NETWORK')
       }
       let payload = null
       try {
@@ -314,7 +314,7 @@ window.__ModuleLoader__.load({
       if (!response.ok || !payload || payload.ok === false) {
         const detail = payload && payload.error ? payload.error : null
         throw requestError(
-          (detail && detail.message) || `分组服务返回了错误（${response.status}）`,
+          (detail && detail.message) || `Group service returned an error (${response.status})`,
           detail && detail.code,
           detail,
         )
@@ -487,7 +487,7 @@ window.__ModuleLoader__.load({
               h('div', null, h('h2', null, title), description ? h('p', null, description) : null),
               h(
                 'button',
-                { type: 'button', className: 'ma-icon-btn', 'aria-label': '关闭', onClick: onClose },
+                { type: 'button', className: 'ma-icon-btn', 'aria-label': 'Close', onClick: onClose },
                 h(Icon, { name: 'x', size: 18 }),
               ),
             ),
@@ -533,7 +533,7 @@ window.__ModuleLoader__.load({
             ...(editing ? {} : { leaderSessionId: leaderId }),
           })
         } catch (caught) {
-          setError(caught.message || '保存失败，请稍后重试')
+          setError(caught.message || 'Save failed; try again later')
         } finally {
           setSaving(false)
         }
@@ -542,15 +542,15 @@ window.__ModuleLoader__.load({
       return h(
         Modal,
         {
-          title: editing ? '编辑分组' : '新建分组',
+          title: editing ? 'Edit group' : 'New group',
           description: editing
-            ? '修改名称、说明或标识色。组长只能通过接管转移，不能直接取消。'
-            : '创建时必须指定一位组长，分组不会出现组长空缺。',
+            ? 'Edit the name, description or color. Leadership only moves through takeover; it cannot be revoked directly.'
+            : 'A leader must be chosen at creation; a group never has a leader vacancy.',
           onClose,
           footer: h(
             Fragment,
             null,
-            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, '取消'),
+            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, 'Cancel'),
             h(
               'button',
               {
@@ -559,7 +559,7 @@ window.__ModuleLoader__.load({
                 onClick: submit,
                 disabled: !canSave,
               },
-              saving ? '保存中…' : editing ? '保存修改' : '创建分组',
+              saving ? 'Saving…' : editing ? 'Save changes' : 'Create group',
             ),
           ),
         },
@@ -569,13 +569,13 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '分组名称', h('em', null, '必填')),
+            h('span', { className: 'ma-field-label' }, 'Group name', h('em', null, 'Required')),
             h('input', {
               ref: nameRef,
               className: 'ma-input',
               value: name,
               maxLength: 40,
-              placeholder: '例如：产品研发组',
+              placeholder: 'e.g. Product R&D',
               onChange: (event) => setName(event.target.value),
             }),
             h('span', { className: 'ma-field-hint' }, `${name.trim().length}/40`),
@@ -583,13 +583,13 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '分组说明'),
+            h('span', { className: 'ma-field-label' }, 'Group description'),
             h('textarea', {
               className: 'ma-textarea',
               value: description,
               maxLength: 240,
               rows: 3,
-              placeholder: '这个小组负责什么？写给之后加入的 Agent 看。',
+              placeholder: 'What does this group do? Visible to agents that join later.',
               onChange: (event) => setDescription(event.target.value),
             }),
             h('span', { className: 'ma-field-hint' }, `${description.trim().length}/240`),
@@ -598,13 +598,13 @@ window.__ModuleLoader__.load({
             ? h(
                 'label',
                 { className: 'ma-field' },
-                h('span', { className: 'ma-field-label' }, '首任组长', h('em', null, '必填')),
+                h('span', { className: 'ma-field-label' }, 'First leader', h('em', null, 'Required')),
                 fixedLeader
                   ? h(
                       'div',
                       { className: 'ma-leader-fixed' },
                       h(Icon, { name: 'crown', size: 14 }),
-                      h('span', null, '当前对话将自动成为组长'),
+                      h('span', null, 'The current conversation becomes the leader automatically'),
                     )
                   : leaderCandidates.length > 0
                     ? h(
@@ -614,7 +614,7 @@ window.__ModuleLoader__.load({
                           value: leaderId,
                           onChange: (event) => setLeaderId(event.target.value),
                         },
-                        h('option', { value: '' }, '选择一位组长'),
+                        h('option', { value: '' }, 'Choose a leader'),
                         leaderCandidates.map((candidate) =>
                           h('option', { key: candidate.id, value: candidate.id }, candidate.title),
                         ),
@@ -623,15 +623,15 @@ window.__ModuleLoader__.load({
                         'div',
                         { className: 'ma-form-error', role: 'alert' },
                         h(Icon, { name: 'info', size: 14 }),
-                        '当前工作区没有可用会话，请先在左侧创建或打开一个对话。',
+                        'No sessions available in the current workspace; create or open a conversation on the left first.',
                       ),
-                h('span', { className: 'ma-field-hint' }, '每个分组必须且只能有一位组长；其他成员后续添加。'),
+                h('span', { className: 'ma-field-hint' }, 'Each group has exactly one leader; add other members later.'),
               )
             : null,
           h(
             'div',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '标识色'),
+            h('span', { className: 'ma-field-label' }, 'Color'),
             h(
               'div',
               { className: 'ma-swatches' },
@@ -643,7 +643,7 @@ window.__ModuleLoader__.load({
                     type: 'button',
                     className: cx('ma-swatch', color === value && 'is-selected'),
                     style: { background: value },
-                    'aria-label': `选择颜色 ${value}`,
+                    'aria-label': `Pick color ${value}`,
                     'aria-pressed': color === value,
                     onClick: () => setColor(value),
                   },
@@ -668,7 +668,7 @@ window.__ModuleLoader__.load({
         try {
           await onConfirm()
         } catch (caught) {
-          setError(caught.message || '操作失败，请稍后重试')
+          setError(caught.message || 'Operation failed; try again later')
         } finally {
           setWorking(false)
         }
@@ -682,7 +682,7 @@ window.__ModuleLoader__.load({
           footer: h(
             Fragment,
             null,
-            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, '取消'),
+            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, 'Cancel'),
             h(
               'button',
               {
@@ -691,7 +691,7 @@ window.__ModuleLoader__.load({
                 onClick: confirm,
                 disabled: working,
               },
-              working ? '处理中…' : confirmLabel,
+              working ? 'Working…' : confirmLabel,
             ),
           ),
         },
@@ -717,17 +717,17 @@ window.__ModuleLoader__.load({
         'span',
         {
           className: cx('ma-chip', leader && 'is-leader', current && 'is-current'),
-          title: `${name} · ${roleLabel(role)}${current ? ' · 当前对话' : ''}`,
+          title: `${name} · ${roleLabel(role)}${current ? ' · Current conversation' : ''}`,
         },
         leader ? h(Icon, { name: 'crown', size: 11 }) : h('i', null),
         h('span', { className: 'ma-chip-name' }, name),
-        current ? h('em', null, '当前') : null,
+        current ? h('em', null, 'Current') : null,
       )
     }
 
     function MemberChips({ state, groupId, sessionId, byId, compact = false }) {
       const members = groupMembers(state, groupId)
-      if (members.length === 0) return h('span', { className: 'ma-muted' }, '暂无成员')
+      if (members.length === 0) return h('span', { className: 'ma-muted' }, 'No members')
       const limit = compact ? 4 : 6
       return h(
         'div',
@@ -741,7 +741,7 @@ window.__ModuleLoader__.load({
           }),
         ),
         members.length > limit
-          ? h('span', { className: 'ma-chip ma-chip-more', title: members.slice(limit).map((item) => displayNameOf(byId, item.sessionId)).join('、') }, `+${members.length - limit}`)
+          ? h('span', { className: 'ma-chip ma-chip-more', title: members.slice(limit).map((item) => displayNameOf(byId, item.sessionId)).join(', ') }, `+${members.length - limit}`)
           : null,
       )
     }
@@ -787,8 +787,8 @@ window.__ModuleLoader__.load({
           h(
             'span',
             null,
-            `${members.length} 位成员`,
-            leaderId ? ` · 组长 ${displayNameOf(byId, leaderId)}` : ' · 组长空缺',
+            `${members.length} members`,
+            leaderId ? ` · leader ${displayNameOf(byId, leaderId)}` : ' · leader vacant',
           ),
         ),
         h(Icon, { name: 'chevronRight', size: 14, className: 'ma-group-row-arrow' }),
@@ -796,10 +796,10 @@ window.__ModuleLoader__.load({
     }
 
     const ACTIVITY_STATE_META = {
-      read: { label: '只读', tone: 'read' },
-      write: { label: '读写', tone: 'write' },
+      read: { label: 'read-only', tone: 'read' },
+      write: { label: 'read/write', tone: 'write' },
     }
-    const ACTIVITY_OP_LABEL = { open: '使用', move: '移动', copy: '复制' }
+    const ACTIVITY_OP_LABEL = { open: 'open', move: 'move', copy: 'copy' }
 
     function formatTokens(value) {
       const tokens = Number(value) || 0
@@ -831,9 +831,9 @@ window.__ModuleLoader__.load({
             setReport((current) => ({
               ...current,
               status: 'error',
-              error: /（404）|404/.test(message)
-                ? '插件服务尚未加载新版本，重启 DSH 后即可看到 Token 报表'
-                : message || 'Token 报表加载失败',
+              error: /\(404\)|404/.test(message)
+                ? 'The plugin service has not loaded a new version yet; restart DSH to see the token report'
+                : message || 'Failed to load the token report',
             }))
           })
         return () => {
@@ -846,7 +846,7 @@ window.__ModuleLoader__.load({
 
       return h(
         'section',
-        { className: 'ma-usage', 'aria-label': 'Token 用量' },
+        { className: 'ma-usage', 'aria-label': 'Token usage' },
         h(
           'div',
           { className: 'ma-usage-head' },
@@ -854,8 +854,8 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'ma-usage-title' },
             h(Icon, { name: 'users', size: 14 }),
-            h('strong', null, 'Token 用量'),
-            h('span', { className: 'ma-count-pill' }, `${rows.length} 位成员`),
+            h('strong', null, 'Token usage'),
+            h('span', { className: 'ma-count-pill' }, `${rows.length} members`),
           ),
           h(
             'button',
@@ -866,28 +866,28 @@ window.__ModuleLoader__.load({
               onClick: () => setTick((value) => value + 1),
             },
             h(Icon, { name: 'refresh', size: 13 }),
-            report.status === 'refreshing' ? '刷新中…' : '刷新',
+            report.status === 'refreshing' ? 'Refreshing…' : 'Refresh',
           ),
         ),
         h(
           'div',
           { className: 'ma-usage-total' },
-          h('span', null, '组内共消耗'),
+          h('span', null, 'Group total'),
           h('strong', null, formatTokens(total)),
           h('em', null, 'tokens'),
         ),
         report.status === 'loading'
-          ? h('p', { className: 'ma-usage-empty' }, '正在统计成员用量…')
+          ? h('p', { className: 'ma-usage-empty' }, 'Counting member usage…')
           : null,
         report.status === 'error'
           ? h(
               'p',
               { className: 'ma-usage-empty is-error', role: 'alert' },
-              report.error || 'Token 报表加载失败',
+              report.error || 'Failed to load the token report',
             )
           : null,
         report.status !== 'loading' && report.status !== 'error' && rows.length === 0
-          ? h('p', { className: 'ma-usage-empty' }, '这个分组还没有成员，暂无用量。')
+          ? h('p', { className: 'ma-usage-empty' }, 'This group has no members yet, so there is no usage.')
           : null,
         rows.length > 0
           ? h(
@@ -902,7 +902,7 @@ window.__ModuleLoader__.load({
                     'span',
                     { className: 'ma-usage-person' },
                     h('strong', { title: displayNameOf(byId, row.sessionId) }, displayNameOf(byId, row.sessionId)),
-                    h('small', { title: row.sessionId }, row.role === ROLE_LEADER ? '组长' : '成员'),
+                    h('small', { title: row.sessionId }, row.role === ROLE_LEADER ? 'Leader' : 'Member'),
                   ),
                   h(
                     'span',
@@ -918,7 +918,7 @@ window.__ModuleLoader__.load({
         h(
           'p',
           { className: 'ma-usage-hint' },
-          '按 provider 实际回报的 tokens 累计（含缓存读取与输出）；占比按组内总量四舍五入到 1%。',
+          'Summed from the tokens actually reported by the provider (including cached reads and output); shares are rounded to 1% of the group total.',
         ),
       )
     }
@@ -947,7 +947,7 @@ window.__ModuleLoader__.load({
         .slice(0, limit > 0 ? limit : 30)
       return h(
         'section',
-        { className: 'ma-activity ma-activity-page', 'aria-label': '执行列表' },
+        { className: 'ma-activity ma-activity-page', 'aria-label': 'Activity' },
         h(
           'div',
           { className: 'ma-activity-head' },
@@ -955,13 +955,13 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'ma-activity-title' },
             h(Icon, { name: 'folder', size: 14 }),
-            h('strong', null, '执行列表'),
+            h('strong', null, 'Activity'),
             h(
               'span',
               { className: 'ma-count-pill' },
               member
-                ? `${matched.length} 条记录`
-                : (showAll ? `${groupActivities.length} 条记录` : `${locked.length} 占用中`),
+                ? `${matched.length} records`
+                : (showAll ? `${groupActivities.length} records` : `${locked.length} in use`),
             ),
           ),
           h(
@@ -971,15 +971,15 @@ window.__ModuleLoader__.load({
               className: 'ma-btn ma-btn-ghost ma-btn-sm',
               onClick: () => setShowAll((current) => !current),
             },
-            showAll ? '只看占用中' : '显示全部',
+            showAll ? 'In use only' : 'Show all',
           ),
         ),
         h('input', {
           type: 'text',
           className: 'ma-activity-search',
           value: query,
-          placeholder: '输入组员 ID 搜索全部记录，可加数字取最近条数',
-          'aria-label': '按组员 ID 搜索执行记录',
+          placeholder: 'Enter a member ID to search all records; append a number for the latest N',
+          'aria-label': 'Search activity by member ID',
           onChange: (event) => setQuery(event.target.value),
         }),
         visible.length === 0
@@ -987,10 +987,10 @@ window.__ModuleLoader__.load({
               'p',
               { className: 'ma-activity-empty' },
               member
-                ? '这个组员没有匹配的执行记录。'
+                ? 'No activity matches this member.'
                 : (showAll
-                  ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
-                  : '当前没有文件被占用。'),
+                  ? 'No activity yet. Entries appear here automatically when a member opens or edits a workspace file.'
+                  : 'No files are in use right now.'),
             )
           : h(
               'ul',
@@ -1055,14 +1055,14 @@ window.__ModuleLoader__.load({
             h(
               'p',
               { className: cx('ma-detail-desc', !group.description && 'is-empty') },
-              group.description || '还没有填写分组说明。',
+              group.description || 'No group description yet.',
             ),
             h(
               'div',
               { className: 'ma-detail-meta' },
-              h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length} 位成员`),
-              h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? `组长 ${displayNameOf(byId, leaderId)}` : '组长空缺'),
-              h('span', null, `更新于 ${formatDate(group.updatedAt)}`),
+              h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length} members`),
+              h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? `leader ${displayNameOf(byId, leaderId)}` : 'Leader vacant'),
+              h('span', null, `Updated ${formatDate(group.updatedAt)}`),
             ),
           ),
           h(
@@ -1073,8 +1073,8 @@ window.__ModuleLoader__.load({
               {
                 type: 'button',
                 className: 'ma-icon-btn',
-                title: '编辑分组',
-                'aria-label': `编辑 ${group.name}`,
+                title: 'Edit group',
+                'aria-label': `Edit ${group.name}`,
                 onClick: () => onEdit(group),
               },
               h(Icon, { name: 'edit', size: 16 }),
@@ -1084,8 +1084,8 @@ window.__ModuleLoader__.load({
               {
                 type: 'button',
                 className: 'ma-icon-btn ma-icon-danger',
-                title: '删除分组',
-                'aria-label': `删除 ${group.name}`,
+                title: 'Delete group',
+                'aria-label': `Delete ${group.name}`,
                 onClick: () => onDelete(group),
               },
               h(Icon, { name: 'trash', size: 16 }),
@@ -1101,8 +1101,8 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 null,
-                h('strong', null, '组长空缺'),
-                h('p', null, '可在下方成员列表中直接设为组长，或进入成员对话后从顶部入口认领。'),
+                h('strong', null, 'Leader vacant'),
+                h('p', null, 'Set a member as leader directly in the list below, or claim it from the top entry after opening a member conversation.'),
               ),
             ),
         h(
@@ -1111,7 +1111,7 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'ma-members-head-actions' },
-            h('span', { className: 'ma-count-pill' }, `${members.length} 位`),
+            h('span', { className: 'ma-count-pill' }, `${members.length} members`),
             onMessages && members.length > 0
               ? h(
                   'button',
@@ -1121,7 +1121,7 @@ window.__ModuleLoader__.load({
                     onClick: () => onMessages(group),
                   },
                   h(Icon, { name: 'message', size: 14 }),
-                  '消息',
+                  'Messages',
                 )
               : null,
             onManage
@@ -1133,7 +1133,7 @@ window.__ModuleLoader__.load({
                     onClick: () => onManage(group),
                   },
                   h(Icon, { name: 'shield', size: 14 }),
-                  '管理组',
+                  'Manage group',
                 )
               : null,
             onAddMembers
@@ -1145,7 +1145,7 @@ window.__ModuleLoader__.load({
                     onClick: () => onAddMembers(group),
                   },
                   h(Icon, { name: 'plus', size: 14 }),
-                  '添加成员',
+                  'Add members',
                 )
               : null,
           ),
@@ -1153,8 +1153,8 @@ window.__ModuleLoader__.load({
         members.length === 0
           ? h(EmptyBlock, {
               icon: 'users',
-              title: '还没有成员',
-              description: '扫描当前工作区的对话添加成员，或打开对话在顶部选择加入分组。',
+              title: 'No members yet',
+              description: 'Scan conversations in the current workspace to add members, or open a conversation and join a group from the top.',
               action: onAddMembers
                 ? h(
                     'button',
@@ -1164,20 +1164,20 @@ window.__ModuleLoader__.load({
                       onClick: () => onAddMembers(group),
                     },
                     h(Icon, { name: 'plus', size: 14 }),
-                    '扫描会话并添加',
+                    'Scan sessions and add',
                   )
                 : null,
             })
           : h(
               'div',
-              { className: 'ma-member-table', role: 'table', 'aria-label': `${group.name} 成员` },
+              { className: 'ma-member-table', role: 'table', 'aria-label': `${group.name} members` },
               h(
                 'div',
                 { className: 'ma-member-table-head', role: 'row' },
-                h('span', { role: 'columnheader' }, '成员'),
-                h('span', { role: 'columnheader' }, '权限'),
-                h('span', { role: 'columnheader' }, '加入时间'),
-                h('span', { role: 'columnheader' }, '操作'),
+                h('span', { role: 'columnheader' }, 'Member'),
+                h('span', { role: 'columnheader' }, 'Permission'),
+                h('span', { role: 'columnheader' }, 'Joined'),
+                h('span', { role: 'columnheader' }, 'Actions'),
               ),
               members.map((membership) => {
                 const name = displayNameOf(byId, membership.sessionId)
@@ -1209,9 +1209,9 @@ window.__ModuleLoader__.load({
                       ? membership.sessionId === leaderId
                         ? h(
                             'span',
-                            { className: 'ma-leader-mark', title: '分组必须保留组长，可先把其他成员设为组长' },
+                            { className: 'ma-leader-mark', title: 'A group must keep a leader; set another member as leader first' },
                             h(Icon, { name: 'crown', size: 11 }),
-                            '当前组长',
+                            'Current leader',
                           )
                         : h(
                             'button',
@@ -1219,10 +1219,10 @@ window.__ModuleLoader__.load({
                               type: 'button',
                               className: 'ma-text-btn',
                               disabled: busy,
-                              title: '转为本组普通成员',
+                              title: 'Make a regular member of this group',
                               onClick: () => onRole(membership, ROLE_MEMBER),
                             },
-                            '转为成员',
+                            'Make member',
                           )
                       : h(
                           'button',
@@ -1230,10 +1230,10 @@ window.__ModuleLoader__.load({
                             type: 'button',
                             className: 'ma-text-btn ma-text-btn-accent',
                             disabled: busy,
-                            title: leaderId ? '接管本组组长' : '设为组长',
+                            title: leaderId ? 'Take over as leader' : 'Set as leader',
                             onClick: () => onRole(membership, ROLE_LEADER),
                           },
-                          '设为组长',
+                          'Set as leader',
                         ),
                     h(
                       'button',
@@ -1243,7 +1243,7 @@ window.__ModuleLoader__.load({
                         disabled: busy,
                         onClick: () => onRemove(membership),
                       },
-                      '移出',
+                      'Remove',
                     ),
                   ),
                 )
@@ -1251,7 +1251,7 @@ window.__ModuleLoader__.load({
             ),
         h(
           'section',
-          { className: 'ma-activity', 'aria-label': '执行列表' },
+          { className: 'ma-activity', 'aria-label': 'Activity' },
           h(
             'div',
             { className: 'ma-activity-head' },
@@ -1259,13 +1259,13 @@ window.__ModuleLoader__.load({
               'div',
               { className: 'ma-activity-title' },
               h(Icon, { name: 'folder', size: 14 }),
-              h('strong', null, '执行列表'),
+              h('strong', null, 'Activity'),
               h(
                 'span',
                 { className: 'ma-count-pill' },
                 activityMember
-                  ? `${matchedActivities.length} 条记录`
-                  : (showAllActivities ? `${groupActivities.length} 条记录` : `${lockedActivities.length} 占用中`),
+                  ? `${matchedActivities.length} records`
+                  : (showAllActivities ? `${groupActivities.length} records` : `${lockedActivities.length} in use`),
               ),
             ),
             h(
@@ -1275,15 +1275,15 @@ window.__ModuleLoader__.load({
                 className: 'ma-btn ma-btn-ghost ma-btn-sm',
                 onClick: () => setShowAllActivities((current) => !current),
               },
-              showAllActivities ? '只看占用中' : '显示全部',
+              showAllActivities ? 'In use only' : 'Show all',
             ),
           ),
           h('input', {
             type: 'text',
             className: 'ma-activity-search',
             value: activityQuery,
-            placeholder: '输入组员 ID 搜索全部记录，可加数字取最近条数',
-            'aria-label': '按组员 ID 搜索执行记录',
+            placeholder: 'Enter a member ID to search all records; append a number for the latest N',
+            'aria-label': 'Search activity by member ID',
             onChange: (event) => setActivityQuery(event.target.value),
           }),
           visibleActivities.length === 0
@@ -1291,10 +1291,10 @@ window.__ModuleLoader__.load({
                 'p',
                 { className: 'ma-activity-empty' },
                 activityMember
-                  ? '这个组员没有匹配的执行记录。'
+                  ? 'No activity matches this member.'
                   : (showAllActivities
-                    ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
-                    : '当前没有文件被占用。'),
+                    ? 'No activity yet. Entries appear here automatically when a member opens or edits a workspace file.'
+                    : 'No files are in use right now.'),
               )
             : h(
                 'ul',
@@ -1325,7 +1325,7 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'ma-detail-foot' },
           h(Icon, { name: 'info', size: 14 }),
-          h('span', null, '一个对话可以同时属于多个分组。这里的成员名称来自对话标题，改名会同步更新。'),
+          h('span', null, 'A conversation can belong to several groups. Member names come from the conversation title and follow renames.'),
         ),
       )
     }
@@ -1370,7 +1370,7 @@ window.__ModuleLoader__.load({
         ? workspace.title || workspaceName(workspace.path)
         : preferredCwd
           ? workspaceName(preferredCwd)
-          : '全部工作区'
+          : 'All workspaces'
       const canSubmit = selectedIds.length > 0 && !busy && !(role === ROLE_LEADER && selectedIds.length > 1)
 
       function toggle(id) {
@@ -1400,7 +1400,7 @@ window.__ModuleLoader__.load({
           if (onAdded) onAdded(selectedIds.length, role)
           onClose()
         } catch (caught) {
-          setError(caught.message || '添加成员失败，请稍后重试')
+          setError(caught.message || 'Failed to add members; try again later')
         } finally {
           setBusy(false)
         }
@@ -1409,8 +1409,8 @@ window.__ModuleLoader__.load({
       return h(
         Modal,
         {
-          title: `添加成员 · ${group.name}`,
-          description: '扫描当前工作区的会话，选择要加入这个分组的对话。',
+          title: `Add members · ${group.name}`,
+          description: 'Scan sessions in the current workspace and pick conversations to join this group.',
           wide: true,
           stacked: true,
           onClose,
@@ -1420,9 +1420,9 @@ window.__ModuleLoader__.load({
             h(
               'span',
               { className: 'ma-add-count' },
-              selectedIds.length === 0 ? '尚未选择会话' : `已选择 ${selectedIds.length} 位`,
+              selectedIds.length === 0 ? 'No sessions selected' : `Selected ${selectedIds.length}`,
             ),
-            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, '取消'),
+            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, 'Cancel'),
             h(
               'button',
               {
@@ -1431,7 +1431,7 @@ window.__ModuleLoader__.load({
                 disabled: !canSubmit,
                 onClick: submit,
               },
-              busy ? '添加中…' : '添加成员',
+              busy ? 'Adding…' : 'Add members',
             ),
           ),
         },
@@ -1443,7 +1443,7 @@ window.__ModuleLoader__.load({
                 'label',
                 { className: 'ma-add-scope' },
                 h(Icon, { name: 'folder', size: 15 }),
-                h('span', { className: 'ma-add-scope-label' }, '工作区'),
+                h('span', { className: 'ma-add-scope-label' }, 'Workspace'),
                 h(
                   'select',
                   {
@@ -1463,15 +1463,15 @@ window.__ModuleLoader__.load({
                     ),
                   ),
                 ),
-                h('em', null, `${available.length} 个可选`),
+                h('em', null, `${available.length} available`),
               )
             : h(
                 'div',
                 { className: 'ma-add-scope' },
                 h(Icon, { name: 'folder', size: 15 }),
-                h('span', { className: 'ma-add-scope-label' }, '当前工作区'),
+                h('span', { className: 'ma-add-scope-label' }, 'Current workspace'),
                 h('strong', { title: workspace ? workspace.path : preferredCwd || '' }, scopeTitle),
-                h('em', null, `${available.length} 个可选`),
+                h('em', null, `${available.length} available`),
               ),
           h(
             'label',
@@ -1479,26 +1479,26 @@ window.__ModuleLoader__.load({
             h(Icon, { name: 'search', size: 15 }),
             h('input', {
               value: query,
-              placeholder: '搜索当前工作区的会话',
-              'aria-label': '搜索会话',
+              placeholder: 'Search sessions in the current workspace',
+              'aria-label': 'Search sessions',
               onChange: (event) => setQuery(event.target.value),
             }),
           ),
           h(
             'div',
-            { className: 'ma-add-list', role: 'group', 'aria-label': '可添加的会话' },
+            { className: 'ma-add-list', role: 'group', 'aria-label': 'Sessions that can be added' },
             visible.length === 0
               ? h(
                   'div',
                   { className: 'ma-add-empty' },
                   h(Icon, { name: query ? 'search' : 'check', size: 20 }),
-                  h('strong', null, query ? '没有匹配的会话' : '当前工作区没有可添加的会话'),
+                  h('strong', null, query ? 'No matching sessions' : 'No sessions can be added from the current workspace'),
                   h(
                     'p',
                     null,
                     query
-                      ? '换一个关键词试试，或切换工作区。'
-                      : '这个工作区的会话可能都已加入分组，或还没有其他会话。',
+                      ? 'Try another keyword, or switch workspace.'
+                      : 'Sessions in this workspace may all have joined a group, or there are no other sessions.',
                   ),
                 )
               : visible.map((summary) =>
@@ -1530,7 +1530,7 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'ma-role-pick' },
-            h('span', { className: 'ma-role-pick-label' }, '加入身份'),
+            h('span', { className: 'ma-role-pick-label' }, 'Join as'),
             h(
               'button',
               {
@@ -1540,7 +1540,7 @@ window.__ModuleLoader__.load({
                 onClick: () => setRole(ROLE_MEMBER),
               },
               h(Icon, { name: 'user', size: 14 }),
-              '成员',
+              'Member',
             ),
             h(
               'button',
@@ -1551,12 +1551,12 @@ window.__ModuleLoader__.load({
                 onClick: () => setRole(ROLE_LEADER),
               },
               h(Icon, { name: 'crown', size: 14 }),
-              '组长',
+              'Leader',
             ),
             h(
               'span',
               { className: 'ma-role-pick-hint' },
-              role === ROLE_LEADER ? '每次只能添加一位组长' : '可一次添加多位成员',
+              role === ROLE_LEADER ? 'Only one leader can be added at a time' : 'Several members can be added at once',
             ),
           ),
           role === ROLE_LEADER && leaderId
@@ -1567,7 +1567,7 @@ window.__ModuleLoader__.load({
                 h(
                   'span',
                   null,
-                  `当前组长是 ${leaderName}，设为组长后对方会自动转为成员。`,
+                  `The current leader is ${leaderName}; setting a new leader makes them a member automatically.`,
                 ),
               )
             : null,
@@ -1576,7 +1576,7 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'ma-form-error', role: 'alert' },
                 h(Icon, { name: 'info', size: 14 }),
-                '一次只能添加一位组长，请减少选择或改为成员。',
+                'Only one leader can be added at a time; select fewer or choose member instead.',
               )
             : null,
           error
@@ -1614,7 +1614,7 @@ window.__ModuleLoader__.load({
           })
           .catch((failure) => {
             if (!alive) return
-            setCatalog({ status: 'error', groups: [], error: failure.message || '模型列表加载失败' })
+            setCatalog({ status: 'error', groups: [], error: failure.message || 'Failed to load the model list' })
           })
         return () => {
           alive = false
@@ -1655,7 +1655,7 @@ window.__ModuleLoader__.load({
       async function save() {
         if (saving) return
         if (mode === 'custom' && !selected) {
-          setError('请先选择一个模型')
+          setError('Pick a model first')
           return
         }
         setSaving(true)
@@ -1668,9 +1668,9 @@ window.__ModuleLoader__.load({
               ? { mode: 'custom', provider, model, reasoningEffort: effort || null }
               : { mode: 'inherit' },
           })
-          onNotice?.(mode === 'custom' ? '已保存：新会话使用指定模型' : '已保存：新会话继承组长设置')
+          onNotice?.(mode === 'custom' ? 'Saved: new sessions use the specified model' : 'Saved: new sessions inherit the leader settings')
         } catch (failure) {
-          setError(failure.message || '保存失败，请稍后重试')
+          setError(failure.message || 'Save failed; try again later')
         } finally {
           setSaving(false)
         }
@@ -1683,13 +1683,13 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'ma-spawn-head' },
           h(Icon, { name: 'sparkles', size: 13 }),
-          h('strong', null, '新会话继承'),
-          h('span', { className: 'ma-spawn-badge' }, mode === 'custom' ? '自定义' : '继承组长'),
+          h('strong', null, 'New session inheritance'),
+          h('span', { className: 'ma-spawn-badge' }, mode === 'custom' ? 'Custom' : 'Inherit from leader'),
         ),
         h(
           'p',
           { className: 'ma-spawn-hint' },
-          '组长用「创建成员会话」工具新建对话时使用的模型与推理等级；新会话不继承任何对话上下文。',
+          'Model and reasoning effort used when the leader creates a conversation with the "spawn member session" tool; new sessions inherit no conversation context.',
         ),
         h(
           'div',
@@ -1697,12 +1697,12 @@ window.__ModuleLoader__.load({
           h(
             'button',
             { type: 'button', className: cx(mode === 'inherit' && 'is-active'), onClick: () => switchMode('inherit') },
-            '继承组长',
+            'Inherit from leader',
           ),
           h(
             'button',
             { type: 'button', className: cx(mode === 'custom' && 'is-active'), onClick: () => switchMode('custom') },
-            '指定模型',
+            'Specified model',
           ),
         ),
         mode === 'custom'
@@ -1712,7 +1712,7 @@ window.__ModuleLoader__.load({
               h(
                 'label',
                 { className: 'ma-field' },
-                h('span', { className: 'ma-field-label' }, '模型'),
+                h('span', { className: 'ma-field-label' }, 'Model'),
                 h(
                   'select',
                   {
@@ -1726,10 +1726,10 @@ window.__ModuleLoader__.load({
                       setEffort('')
                     },
                   },
-                  catalog.status === 'loading' ? h('option', { value: '' }, '正在读取模型列表…') : null,
-                  catalog.status === 'error' ? h('option', { value: '' }, '模型列表加载失败，请稍后重试') : null,
+                  catalog.status === 'loading' ? h('option', { value: '' }, 'Loading the model list…') : null,
+                  catalog.status === 'error' ? h('option', { value: '' }, 'Failed to load the model list; try again later') : null,
                   catalog.status === 'ready' && models.length === 0
-                    ? h('option', { value: '' }, '当前没有可用模型')
+                    ? h('option', { value: '' }, 'No models available right now')
                     : null,
                   catalog.groups.map((providerGroup) =>
                     h(
@@ -1750,7 +1750,7 @@ window.__ModuleLoader__.load({
                 ? h(
                     'label',
                     { className: 'ma-field' },
-                    h('span', { className: 'ma-field-label' }, '推理等级'),
+                    h('span', { className: 'ma-field-label' }, 'Reasoning effort'),
                     h(
                       'select',
                       {
@@ -1758,7 +1758,7 @@ window.__ModuleLoader__.load({
                         value: effort,
                         onChange: (event) => setEffort(event.target.value),
                       },
-                      h('option', { value: '' }, '默认'),
+                      h('option', { value: '' }, 'Default'),
                       efforts.map((entry) =>
                         h('option', { key: entry.id, value: entry.id }, entry.name || entry.id),
                       ),
@@ -1767,14 +1767,14 @@ window.__ModuleLoader__.load({
                 : h(
                     'p',
                     { className: 'ma-spawn-hint' },
-                    selected ? '这个模型没有可调整的推理等级。' : '选择模型后可调整推理等级。',
+                    selected ? 'This model has no adjustable reasoning effort.' : 'Pick a model to adjust reasoning effort.',
                   ),
             )
           : h(
               'p',
               { className: 'ma-spawn-inline' },
               h(Icon, { name: 'crown', size: 12 }),
-              '创建时读取组长当前的模型与推理等级。',
+              'Reads the current model and reasoning effort of the leader at creation time.',
             ),
         error
           ? h('div', { className: 'ma-form-error', role: 'alert' }, h(Icon, { name: 'info', size: 13 }), error)
@@ -1790,7 +1790,7 @@ window.__ModuleLoader__.load({
               disabled: saving,
               onClick: save,
             },
-            saving ? '保存中…' : '保存继承配置',
+            saving ? 'Saving…' : 'Save inheritance settings',
           ),
         ),
       )
@@ -1810,20 +1810,20 @@ window.__ModuleLoader__.load({
         if (saving) return
         const numeric = Number(value)
         if (!Number.isInteger(numeric) || numeric < 2 || numeric > 32) {
-          setError('请输入 2–32 之间的整数')
+          setError('Enter an integer between 2 and 32')
           return
         }
         if (numeric < memberCount) {
-          setError(`当前已有 ${memberCount} 个会话，不能小于这个数量`)
+          setError(`There are already ${memberCount} sessions; the limit cannot be lower`)
           return
         }
         setSaving(true)
         setError(null)
         try {
           await store.mutate({ action: 'updateGroup', groupId: group.id, maxSessions: numeric })
-          onNotice?.(`最大会话数已调整为 ${numeric}`)
+          onNotice?.(`Max sessions set to ${numeric}`)
         } catch (caught) {
-          setError(caught.message || '保存失败，请稍后重试')
+          setError(caught.message || 'Save failed; try again later')
         } finally {
           setSaving(false)
         }
@@ -1835,7 +1835,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'ma-capacity-head' },
-          h('strong', null, '最大会话数'),
+          h('strong', null, 'Max sessions'),
           h('span', { className: 'ma-count-pill' }, `${memberCount}/${maxSessions}`),
         ),
         h(
@@ -1844,7 +1844,7 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '这个团队最多容纳的会话数（含组长）'),
+            h('span', { className: 'ma-field-label' }, 'Max sessions this group can hold (including the leader)'),
             h('input', {
               className: 'ma-input',
               type: 'number',
@@ -1860,10 +1860,10 @@ window.__ModuleLoader__.load({
           h(
             'button',
             { type: 'button', className: 'ma-btn ma-btn-sm', disabled: saving || Number(value) === maxSessions, onClick: save },
-            saving ? '保存中…' : '保存',
+            saving ? 'Saving…' : 'Save',
           ),
         ),
-        h('span', { className: 'ma-field-hint' }, '只有你（用户）可以修改；组长创建成员会话、成员加入时都会受此上限约束。实际任务模块数量建议保持在“最大会话数 − 1”左右。'),
+        h('span', { className: 'ma-field-hint' }, 'Only you (the user) can change this; it caps leader spawning and member joins. Keep the number of task modules around "max sessions − 1".'),
         error ? h('div', { className: 'ma-form-error' }, error) : null,
       )
     }
@@ -1894,11 +1894,11 @@ window.__ModuleLoader__.load({
           setTakeover(null)
           setNotice(
             role === ROLE_LEADER
-              ? `已将 ${displayNameOf(byId, member.sessionId)} 设为组长`
-              : `已将 ${displayNameOf(byId, member.sessionId)} 转为成员`,
+              ? `Made ${displayNameOf(byId, member.sessionId)} the leader`
+              : `Made ${displayNameOf(byId, member.sessionId)} a member`,
           )
         } catch (caught) {
-          setError(caught.message || '权限调整失败，请稍后重试')
+          setError(caught.message || 'Failed to change permission; try again later')
         } finally {
           setBusy(false)
         }
@@ -1924,10 +1924,10 @@ window.__ModuleLoader__.load({
             groupId: group.id,
             sessionId: removeTarget.sessionId,
           })
-          setNotice(`已将 ${displayNameOf(byId, removeTarget.sessionId)} 移出分组`)
+          setNotice(`Removed ${displayNameOf(byId, removeTarget.sessionId)} from the group`)
           setRemoveTarget(null)
         } catch (caught) {
-          setError(caught.message || '移出成员失败，请稍后重试')
+          setError(caught.message || 'Failed to remove the member; try again later')
         } finally {
           setBusy(false)
         }
@@ -1943,11 +1943,11 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 { className: 'ma-manage-summary-copy' },
-                h('strong', { title: group.description || group.name }, group.description || '还没有填写分组说明。'),
+                h('strong', { title: group.description || group.name }, group.description || 'No group description yet.'),
                 h(
                   'span',
                   null,
-                  `${members.length}/${group.maxSessions ?? 8} 位成员 · ${leaderId ? `组长 ${displayNameOf(byId, leaderId)}` : '组长空缺'}`,
+                  `${members.length}/${group.maxSessions ?? 8} members · ${leaderId ? `leader ${displayNameOf(byId, leaderId)}` : 'Leader vacant'}`,
                 ),
               ),
             ),
@@ -1971,14 +1971,14 @@ window.__ModuleLoader__.load({
             h(
               'div',
               { className: 'ma-manage-head' },
-              h('strong', null, '成员与权限'),
-              h('span', { className: 'ma-count-pill' }, `${members.length} 位`),
+              h('strong', null, 'Members and permissions'),
+              h('span', { className: 'ma-count-pill' }, `${members.length} members`),
             ),
             members.length === 0
               ? h(EmptyBlock, {
                   icon: 'users',
-                  title: '还没有成员',
-                  description: '扫描当前工作区的会话，选择要加入这个分组的对话。',
+                  title: 'No members yet',
+                  description: 'Scan sessions in the current workspace and pick conversations to join this group.',
                   action: h(
                     'button',
                     {
@@ -1987,7 +1987,7 @@ window.__ModuleLoader__.load({
                       onClick: () => setAddOpen(true),
                     },
                     h(Icon, { name: 'plus', size: 14 }),
-                    '添加成员',
+                    'Add members',
                   ),
                 })
               : h(
@@ -2017,9 +2017,9 @@ window.__ModuleLoader__.load({
                         isLeader && membership.sessionId === leaderId
                           ? h(
                               'span',
-                              { className: 'ma-leader-mark', title: '分组必须保留组长，可先把其他成员设为组长' },
+                              { className: 'ma-leader-mark', title: 'A group must keep a leader; set another member as leader first' },
                               h(Icon, { name: 'crown', size: 11 }),
-                              '当前组长',
+                              'Current leader',
                             )
                           : h(
                               'button',
@@ -2029,7 +2029,7 @@ window.__ModuleLoader__.load({
                                 disabled: busy,
                                 onClick: () => requestRole(membership, isLeader ? ROLE_MEMBER : ROLE_LEADER),
                               },
-                              isLeader ? '转为成员' : '设为组长',
+                              isLeader ? 'Make member' : 'Set as leader',
                             ),
                         h(
                           'button',
@@ -2043,7 +2043,7 @@ window.__ModuleLoader__.load({
                               setError(null)
                             },
                           },
-                          '移出',
+                          'Remove',
                         ),
                       ),
                     )
@@ -2056,11 +2056,11 @@ window.__ModuleLoader__.load({
                   h(
                     'p',
                     null,
-                    '将 ',
+                    'Make ',
                     h('strong', null, displayNameOf(byId, takeover.member.sessionId)),
-                    ' 设为组长，现任组长 ',
+                    ' the leader; the current leader ',
                     h('strong', null, displayNameOf(byId, takeover.leaderId)),
-                    ' 会自动转为成员。',
+                    ' becomes a member automatically.',
                   ),
                   h(
                     'div',
@@ -2068,7 +2068,7 @@ window.__ModuleLoader__.load({
                     h(
                       'button',
                       { type: 'button', className: 'ma-btn ma-btn-ghost ma-btn-sm', onClick: () => setTakeover(null) },
-                      '取消',
+                      'Cancel',
                     ),
                     h(
                       'button',
@@ -2078,7 +2078,7 @@ window.__ModuleLoader__.load({
                         disabled: busy,
                         onClick: () => applyRole(takeover.member, ROLE_LEADER, true),
                       },
-                      '确认接管',
+                      'Confirm takeover',
                     ),
                   ),
                 )
@@ -2090,9 +2090,9 @@ window.__ModuleLoader__.load({
                   h(
                     'p',
                     null,
-                    '将 ',
+                    'Make ',
                     h('strong', null, displayNameOf(byId, removeTarget.sessionId)),
-                    ' 移出这个分组？该对话在其他分组中的角色不受影响。',
+                    ' from this group? Its role in other groups is unaffected.',
                   ),
                   h(
                     'div',
@@ -2100,7 +2100,7 @@ window.__ModuleLoader__.load({
                     h(
                       'button',
                       { type: 'button', className: 'ma-btn ma-btn-ghost ma-btn-sm', onClick: () => setRemoveTarget(null) },
-                      '取消',
+                      'Cancel',
                     ),
                     h(
                       'button',
@@ -2110,7 +2110,7 @@ window.__ModuleLoader__.load({
                         disabled: busy,
                         onClick: removeMember,
                       },
-                      '确认移出',
+                      'Confirm removal',
                     ),
                   ),
                 )
@@ -2142,12 +2142,12 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 { className: 'ma-embed-head' },
-                h('strong', null, `管理「${group.name}」`),
+                h('strong', null, `Manage "${group.name}"`),
                 h(
                   'button',
                   { type: 'button', className: 'ma-btn ma-btn-primary ma-btn-sm', onClick: () => setAddOpen(true) },
                   h(Icon, { name: 'plus', size: 14 }),
-                  '添加成员',
+                  'Add members',
                 ),
               ),
               panel,
@@ -2155,20 +2155,20 @@ window.__ModuleLoader__.load({
           : h(
               Modal,
               {
-                title: `管理「${group.name}」`,
-                description: '添加或移出成员，调整组长与成员权限。',
+                title: `Manage "${group.name}"`,
+                description: 'Add or remove members and adjust leader and member permissions.',
                 wide: true,
                 stacked: true,
                 onClose,
                 footer: h(
                   Fragment,
                   null,
-                  h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, '完成'),
+                  h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, 'Done'),
                   h(
                     'button',
                     { type: 'button', className: 'ma-btn ma-btn-primary', onClick: () => setAddOpen(true) },
                     h(Icon, { name: 'plus', size: 14 }),
-                    '添加成员',
+                    'Add members',
                   ),
                 ),
               },
@@ -2185,7 +2185,7 @@ window.__ModuleLoader__.load({
               onClose: () => setAddOpen(false),
               onAdded: (count) => {
                 setAddOpen(false)
-                setNotice(`已添加 ${count} 位成员`)
+                setNotice(`Added ${count} members`)
               },
             })
           : null,
@@ -2194,38 +2194,38 @@ window.__ModuleLoader__.load({
 
     function messageAudience(message, byId) {
       if (message.mode === 'private') {
-        return `私聊给 ${displayNameOf(byId, message.recipientSessionId)}`
+        return `Private message to ${displayNameOf(byId, message.recipientSessionId)}`
       }
       const count = Array.isArray(message.deliveries) ? message.deliveries.length : 0
-      return count > 0 ? `广播给 ${count} 位成员` : '广播'
+      return count > 0 ? `Broadcast to ${count} members` : 'Broadcast'
     }
 
     function deliveryText(delivery) {
-      if (delivery.status === 'failed') return '投递失败'
-      if (delivery.status === 'sent') return '已送达'
-      return '投递中'
+      if (delivery.status === 'failed') return 'Delivery failed'
+      if (delivery.status === 'sent') return 'Delivered'
+      return 'Delivering'
     }
 
     function messageForAgent(group, senderName, message) {
       return [
-        `【分组消息｜${group.name}】`,
-        `${senderName} 向你发送了一条消息：`,
+        `[Group message | ${group.name}]`,
+        `${senderName} sent you a message:`,
         '',
         message.content,
         '',
-        `消息编号：${message.id}`,
-        '收到后必须回复：调用 multi_agent_message 工具（op="-r"），传 content 即可回复。',
+        `Message ID: ${message.id}`,
+        'You must reply after receiving it: call the multi_agent_message tool (op="-r") and pass content to reply.',
       ].join('\n')
     }
 
     function replyForAgent(group, replierName, message, content) {
       return [
-        `【分组回复｜${group.name}】`,
-        `${replierName} 回复了你的消息：`,
+        `[Group reply | ${group.name}]`,
+        `${replierName} replied to your message:`,
         '',
         content,
         '',
-        `原消息编号：${message.id}`,
+        `Original message ID: ${message.id}`,
       ].join('\n')
     }
 
@@ -2298,7 +2298,7 @@ window.__ModuleLoader__.load({
             setQueue((current) => ({
               ...current,
               status: 'error',
-              error: requestFailure.message || '消息队列加载失败',
+              error: requestFailure.message || 'Failed to load the message queue',
             }))
           })
         return () => {
@@ -2362,7 +2362,7 @@ window.__ModuleLoader__.load({
               messageId,
               sessionId,
               ok,
-              error: ok ? null : failMessage || '插话投递失败',
+              error: ok ? null : failMessage || 'Interjection delivery failed',
               reply: isReply === true,
             }),
           })
@@ -2396,7 +2396,7 @@ window.__ModuleLoader__.load({
             }),
           })
           const message = data.result
-          if (!message) throw new Error('消息已记录，但没有返回投递信息')
+          if (!message) throw new Error('The message was recorded but no delivery info was returned')
           let sent = 0
           let failed = 0
           if (typeof deliverInterjection !== 'function') {
@@ -2419,12 +2419,12 @@ window.__ModuleLoader__.load({
           setContent('')
           setNotice(
             failed === 0
-              ? `消息已插话发送给 ${sent} 位成员`
-              : `已投递 ${sent} 位，${failed} 位投递失败；失败记录已保留在队列中`,
+              ? `Message interjected to ${sent} members`
+              : `Delivered to ${sent}; ${failed} failed; the failed records stay in the queue`,
           )
           setRefreshTick((value) => value + 1)
         } catch (sendFailure) {
-          setError(sendFailure.message || '发送失败，请稍后重试')
+          setError(sendFailure.message || 'Send failed; try again later')
         } finally {
           setSending(false)
         }
@@ -2457,13 +2457,13 @@ window.__ModuleLoader__.load({
           setReplyTarget(null)
           setReplyText('')
           setNotice(delivery && delivery.replyToUser
-            ? '回复已记录并展示给用户'
+            ? 'Reply recorded and shown to the user'
             : delivered
-              ? '回复已插话发送给原发送者'
-              : `回复已记录，但插话投递失败${delivery && delivery.error ? `：${delivery.error}` : ''}`)
+              ? 'Reply interjected to the original sender'
+              : `Reply recorded, but interjection delivery failed${delivery && delivery.error ? `: ${delivery.error}` : ''}`)
           setRefreshTick((value) => value + 1)
         } catch (replyFailure) {
-          setError(replyFailure.message || '回复失败，请稍后重试')
+          setError(replyFailure.message || 'Reply failed; try again later')
         } finally {
           setReplying(false)
         }
@@ -2483,24 +2483,24 @@ window.__ModuleLoader__.load({
                 'span',
                 null,
                 isUser
-                  ? '用户（我） · 控制台'
+                  ? 'User (me) · Console'
                   : viewerMembership
                     ? `${displayNameOf(byId, viewerId)} · ${roleLabel(viewerMembership.role)}`
-                    : '当前对话已不在这个分组',
+                    : 'This conversation is no longer in this group',
               ),
             ),
             canSwitchViewer
               ? h(
                   'label',
                   { className: 'ma-msg-viewer' },
-                  h('span', null, '查看身份'),
+                  h('span', null, 'View identity'),
                   h(
                     'select',
                     {
                       value: viewerId,
                       onChange: (event) => setViewerId(event.target.value),
                     },
-                    h('option', { value: USER_VIEWER_ID }, '用户（我） · 控制台'),
+                    h('option', { value: USER_VIEWER_ID }, 'User (me) · Console'),
                     members.map((membership) =>
                       h(
                         'option',
@@ -2515,15 +2515,15 @@ window.__ModuleLoader__.load({
               'span',
               { className: cx('ma-msg-access', isUser && 'is-user', !isUser && queue.isLeader && 'is-leader') },
               h(Icon, { name: isUser || queue.isLeader ? 'lock' : 'user', size: 12 }),
-              isUser ? '用户视图 · 全组消息' : queue.isLeader ? '组长视图 · 全组消息' : '成员视图 · 与我相关',
+              isUser ? 'User view · all group messages' : queue.isLeader ? 'Leader view · all group messages' : 'Member view · related to me',
             ),
           ),
           h(
             'div',
             { className: 'ma-msg-stats' },
-            h('span', null, h('strong', null, queue.messages.length), ' 条队列消息'),
-            h('span', { className: pendingMessages.length > 0 ? 'is-warn' : undefined }, h('strong', null, pendingMessages.length), ' 条待我回复'),
-            h('span', null, h('strong', null, sentMessages.length), ' 条我发出的'),
+            h('span', null, h('strong', null, queue.messages.length), ' queued messages'),
+            h('span', { className: pendingMessages.length > 0 ? 'is-warn' : undefined }, h('strong', null, pendingMessages.length), ' awaiting my reply'),
+            h('span', null, h('strong', null, sentMessages.length), ' sent by me'),
             h(
               'button',
               {
@@ -2532,7 +2532,7 @@ window.__ModuleLoader__.load({
                 onClick: () => setRefreshTick((value) => value + 1),
               },
               h(Icon, { name: 'refresh', size: 13 }),
-              '刷新',
+              'Refresh',
             ),
           ),
           h(
@@ -2544,8 +2544,8 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 { className: 'ma-msg-compose-title' },
-                h('strong', null, '插话发送'),
-                h('span', null, `发送人：${isUser ? '用户（我）' : viewerName}`),
+                h('strong', null, 'Send interjection'),
+                h('span', null, `Sender: ${isUser ? 'User (me)' : viewerName}`),
               ),
               h(
                 'div',
@@ -2557,7 +2557,7 @@ window.__ModuleLoader__.load({
                     className: cx(mode === 'broadcast' && 'is-active'),
                     onClick: () => setMode('broadcast'),
                   },
-                  '广播全员',
+                  'Whole group',
                 ),
                 h(
                   'button',
@@ -2566,7 +2566,7 @@ window.__ModuleLoader__.load({
                     className: cx(mode === 'private' && 'is-active'),
                     onClick: () => setMode('private'),
                   },
-                  '私聊',
+                  'Private message',
                 ),
               ),
             ),
@@ -2574,12 +2574,12 @@ window.__ModuleLoader__.load({
               ? h(
                   'label',
                   { className: 'ma-msg-recipient' },
-                  h('span', null, '发给'),
+                  h('span', null, 'To'),
                   h(
                     'select',
                     { value: activeRecipient, onChange: (event) => setRecipient(event.target.value) },
                     others.length === 0
-                      ? h('option', { value: '' }, '没有其他成员')
+                      ? h('option', { value: '' }, 'No other members')
                       : others.map((membership) =>
                           h(
                             'option',
@@ -2595,9 +2595,9 @@ window.__ModuleLoader__.load({
                   h(Icon, { name: 'users', size: 13 }),
                   others.length > 0
                     ? isUser
-                      ? `将以「用户」身份插话发送给全部 ${others.length} 位成员`
-                      : `将插话发送给另外 ${others.length} 位成员`
-                    : '组内还没有其他成员',
+                      ? `Will be interjected to all ${others.length} members as the user`
+                      : `Will be interjected to the other ${others.length} members`
+                    : 'The group has no other members yet',
                 ),
             pendingMessages.length > 0
               ? h(
@@ -2607,12 +2607,12 @@ window.__ModuleLoader__.load({
                   h(
                     'span',
                     null,
-                    `你有 ${pendingMessages.length} 条消息待回复。先完成回复，才能继续发送新消息。`,
+                    `You have ${pendingMessages.length} messages awaiting a reply. Reply first to send new messages.`,
                   ),
                   h(
                     'button',
                     { type: 'button', className: 'ma-text-btn', onClick: () => setFilter('pending') },
-                    '去回复',
+                    'Reply now',
                   ),
                 )
               : null,
@@ -2621,7 +2621,7 @@ window.__ModuleLoader__.load({
               value: content,
               maxLength: 4000,
               rows: 3,
-              placeholder: mode === 'broadcast' ? '写一条广播消息，所有组内成员都会收到插话…' : '写一条私聊消息，只有选中的成员会收到插话…',
+              placeholder: mode === 'broadcast' ? 'Write a broadcast; every group member receives an interjection…' : 'Write a private message; only the selected members receive an interjection…',
               onChange: (event) => setContent(event.target.value),
               onKeyDown: (event) => {
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -2633,7 +2633,7 @@ window.__ModuleLoader__.load({
             h(
               'div',
               { className: 'ma-msg-compose-foot' },
-              h('span', null, `${content.length}/4000 · Ctrl+Enter 发送`),
+              h('span', null, `${content.length}/4000 · Ctrl+Enter to send`),
               h(
                 'button',
                 {
@@ -2643,7 +2643,7 @@ window.__ModuleLoader__.load({
                   onClick: sendMessage,
                 },
                 h(Icon, { name: 'send', size: 14 }),
-                sending ? '发送中…' : '插话发送',
+                sending ? 'Sending…' : 'Send interjection',
               ),
             ),
           ),
@@ -2656,29 +2656,29 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { className: 'ma-msg-queue-head' },
-            h('strong', null, '消息队列'),
+            h('strong', null, 'Message queue'),
             h(
               'div',
               { className: 'ma-msg-filters' },
               h(
                 'button',
                 { type: 'button', className: cx(filter === 'all' && 'is-active'), onClick: () => setFilter('all') },
-                `全部 ${queue.messages.length}`,
+                `All ${queue.messages.length}`,
               ),
               h(
                 'button',
                 { type: 'button', className: cx(filter === 'pending' && 'is-active'), onClick: () => setFilter('pending') },
-                `待我回复 ${pendingMessages.length}`,
+                `Awaiting my reply ${pendingMessages.length}`,
               ),
               h(
                 'button',
                 { type: 'button', className: cx(filter === 'mine' && 'is-active'), onClick: () => setFilter('mine') },
-                `我发出的 ${sentMessages.length}`,
+                `Sent by me ${sentMessages.length}`,
               ),
             ),
           ),
           queue.status === 'loading'
-            ? h('div', { className: 'ma-msg-empty' }, h('span', { className: 'ma-spinner' }), '正在读取消息队列…')
+            ? h('div', { className: 'ma-msg-empty' }, h('span', { className: 'ma-spinner' }), 'Loading the message queue…')
             : queue.status === 'error'
               ? h('div', { className: 'ma-msg-empty is-error' }, h(Icon, { name: 'info', size: 18 }), queue.error)
               : displayedMessages.length === 0
@@ -2686,7 +2686,7 @@ window.__ModuleLoader__.load({
                     'div',
                     { className: 'ma-msg-empty' },
                     h(Icon, { name: 'message', size: 20 }),
-                    filter === 'pending' ? '没有待回复消息。' : filter === 'mine' ? '你还没有发送过消息。' : '队列还是空的，发送第一条组内消息。',
+                    filter === 'pending' ? 'No messages awaiting a reply.' : filter === 'mine' ? 'You have not sent any messages yet.' : 'The queue is empty; send the first group message.',
                   )
                 : h(
                     'div',
@@ -2723,11 +2723,11 @@ window.__ModuleLoader__.load({
                             h(
                               'span',
                               null,
-                              `${messageAudience(message, byId)} · ${message.mode === 'broadcast' ? `${replies}/${message.deliveries.length} 已回复` : '私聊'}`,
+                              `${messageAudience(message, byId)} · ${message.mode === 'broadcast' ? `${replies}/${message.deliveries.length} replied` : 'Private message'}`,
                             ),
                           ),
                           h('time', { dateTime: message.createdAt }, formatDateTime(message.createdAt)),
-                          mine ? h('span', { className: 'ma-msg-mine-tag' }, '我发出的') : null,
+                          mine ? h('span', { className: 'ma-msg-mine-tag' }, 'Sent by me') : null,
                         ),
                         h('p', { className: 'ma-msg-content' }, message.content),
                         h(
@@ -2754,12 +2754,12 @@ window.__ModuleLoader__.load({
                                   ? h(
                                       'span',
                                       { className: 'ma-msg-status is-ok' },
-                                      delivery.reply.status === 'failed' ? '回复投递失败' : '已回复',
+                                      delivery.reply.status === 'failed' ? 'Reply delivery failed' : 'Replied',
                                     )
                                   : h(
                                       'span',
                                       { className: 'ma-msg-status is-pending' },
-                                      delivery.status === 'failed' ? '无需回复' : '待回复',
+                                      delivery.status === 'failed' ? 'No reply needed' : 'Awaiting reply',
                                     ),
                               ),
                               delivery.reply
@@ -2770,7 +2770,7 @@ window.__ModuleLoader__.load({
                                     h(
                                       'span',
                                       null,
-                                      `${formatDateTime(delivery.reply.createdAt)} · ${delivery.reply.status === 'failed' ? '回复投递失败' : delivery.reply.status === 'sent' ? (message.senderKind === 'user' ? '回复已送达用户' : '回复已插话送达') : '回复投递中'}`,
+                                      `${formatDateTime(delivery.reply.createdAt)} · ${delivery.reply.status === 'failed' ? 'Reply delivery failed' : delivery.reply.status === 'sent' ? (message.senderKind === 'user' ? 'Reply delivered to the user' : 'Reply interjected') : 'Reply delivering'}`,
                                     ),
                                   )
                                 : null,
@@ -2787,7 +2787,7 @@ window.__ModuleLoader__.load({
                                   rows: 3,
                                   maxLength: 4000,
                                   value: replyText,
-                                  placeholder: message.senderKind === 'user' ? '回复这条消息，回复会展示在用户的消息队列…' : '回复这条消息，回复会插话发送给原发送者…',
+                                  placeholder: message.senderKind === 'user' ? 'Reply to this message; the reply appears in the message queue of the user…' : 'Reply to this message; the reply is interjected to the original sender…',
                                   onChange: (event) => setReplyText(event.target.value),
                                 }),
                                 h(
@@ -2796,12 +2796,12 @@ window.__ModuleLoader__.load({
                                   h(
                                     'span',
                                     null,
-                                    pendingMessages.length > 0 ? '回复后即可解除发送限制' : '回复内容会进入消息队列',
+                                    pendingMessages.length > 0 ? 'Replying lifts the send restriction' : 'The reply goes into the message queue',
                                   ),
                                   h(
                                     'button',
                                     { type: 'button', className: 'ma-btn ma-btn-ghost ma-btn-sm', onClick: () => setReplyTarget(null) },
-                                    '取消',
+                                    'Cancel',
                                   ),
                                   h(
                                     'button',
@@ -2811,7 +2811,7 @@ window.__ModuleLoader__.load({
                                       disabled: replying || !replyText.trim(),
                                       onClick: () => submitReply(message),
                                     },
-                                    replying ? '回复中…' : '发送回复',
+                                    replying ? 'Replying…' : 'Send reply',
                                   ),
                                 ),
                               )
@@ -2829,7 +2829,7 @@ window.__ModuleLoader__.load({
                                     },
                                   },
                                   h(Icon, { name: 'reply', size: 13 }),
-                                  '回复',
+                                  'Reply',
                                 ),
                               )
                           : null,
@@ -2844,10 +2844,10 @@ window.__ModuleLoader__.load({
               'span',
               null,
               isUser
-                ? '你正以用户身份查看全组广播与私聊；成员回复会显示在这条消息的队列中。'
+                ? 'You are viewing all broadcasts and private messages as the user; member replies appear in the queue of this message.'
                 : queue.isLeader
-                  ? '组长可查看本组广播与私聊队列；成员只能查看与自己相关的消息。'
-                  : '每个成员必须回复收到的消息；未回复时不能发送新消息。',
+                  ? 'The leader sees the broadcast and private message queues of the group; members see only messages related to them.'
+                  : 'Every member must reply to received messages; without a reply no new message can be sent.',
             ),
           ),
         )
@@ -2856,8 +2856,8 @@ window.__ModuleLoader__.load({
         : h(
             Modal,
             {
-              title: `消息 · ${group.name}`,
-              description: '组内广播与私聊都通过插话送达目标对话；收到消息的成员需要回复。',
+              title: `Messages · ${group.name}`,
+              description: 'Broadcasts and private messages reach conversations as interjections; recipients must reply.',
               onClose,
               wide: true,
             },
@@ -2867,11 +2867,11 @@ window.__ModuleLoader__.load({
 
 
     const DETAIL_TABS = [
-      { id: 'manage', label: '管理组', icon: 'shield' },
-      { id: 'tasks', label: '组内任务', icon: 'folder' },
-      { id: 'messages', label: '消息列表', icon: 'message' },
-      { id: 'usage', label: '用量统计', icon: 'clock' },
-      { id: 'activity', label: '执行列表', icon: 'pencil' },
+      { id: 'manage', label: 'Manage group', icon: 'shield' },
+      { id: 'tasks', label: 'Group tasks', icon: 'folder' },
+      { id: 'messages', label: 'Messages', icon: 'message' },
+      { id: 'usage', label: 'Usage', icon: 'clock' },
+      { id: 'activity', label: 'Activity', icon: 'pencil' },
     ]
 
     function GroupDetailView({ group, state, byId, store, workspaces, deliverInterjection, onBack, onEdit, onDelete }) {
@@ -2891,7 +2891,7 @@ window.__ModuleLoader__.load({
             'button',
             { type: 'button', className: 'ma-back-btn', onClick: onBack },
             h(Icon, { name: 'arrowLeft', size: 14 }),
-            '全部分组',
+            'All groups',
           ),
           h(Avatar, { name: group.name, color: group.color, size: 44 }),
           h(
@@ -2901,14 +2901,14 @@ window.__ModuleLoader__.load({
             h(
               'p',
               { className: cx('ma-detail-desc', !group.description && 'is-empty') },
-              group.description || '还没有填写分组说明。',
+              group.description || 'No group description yet.',
             ),
             h(
               'div',
               { className: 'ma-detail-meta' },
-              h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length} 位成员`),
-              h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? `组长 ${displayNameOf(byId, leaderId)}` : '组长空缺'),
-              h('span', null, `更新于 ${formatDate(group.updatedAt)}`),
+              h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length} members`),
+              h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? `leader ${displayNameOf(byId, leaderId)}` : 'Leader vacant'),
+              h('span', null, `Updated ${formatDate(group.updatedAt)}`),
             ),
           ),
           h(
@@ -2916,12 +2916,12 @@ window.__ModuleLoader__.load({
             { className: 'ma-detail-tools' },
             h(
               'button',
-              { type: 'button', className: 'ma-icon-btn', title: '编辑分组', onClick: () => onEdit(group) },
+              { type: 'button', className: 'ma-icon-btn', title: 'Edit group', onClick: () => onEdit(group) },
               h(Icon, { name: 'edit', size: 16 }),
             ),
             h(
               'button',
-              { type: 'button', className: 'ma-icon-btn ma-icon-danger', title: '删除分组', onClick: () => onDelete(group) },
+              { type: 'button', className: 'ma-icon-btn ma-icon-danger', title: 'Delete group', onClick: () => onDelete(group) },
               h(Icon, { name: 'trash', size: 16 }),
             ),
           ),
@@ -2994,16 +2994,16 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'ma-group-card-copy' },
             h('strong', { title: group.name }, group.name),
-            h('span', { title: group.description || '' }, group.description || '还没有填写说明'),
+            h('span', { title: group.description || '' }, group.description || 'No description yet'),
           ),
           h(Icon, { name: 'chevronRight', size: 16 }),
         ),
         h(
           'div',
           { className: 'ma-group-card-meta' },
-          h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length}/${group.maxSessions ?? 8} 成员`),
-          h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? displayNameOf(byId, leaderId) : '组长空缺'),
-          h('span', null, h(Icon, { name: 'folder', size: 13 }), `${taskCount} 个任务`),
+          h('span', null, h(Icon, { name: 'users', size: 13 }), `${members.length}/${group.maxSessions ?? 8} members`),
+          h('span', null, h(Icon, { name: 'crown', size: 13 }), leaderId ? displayNameOf(byId, leaderId) : 'Leader vacant'),
+          h('span', null, h(Icon, { name: 'folder', size: 13 }), `${taskCount} tasks`),
         ),
       )
     }
@@ -3066,7 +3066,7 @@ window.__ModuleLoader__.load({
         )
         if (!editing && data.result && data.result.id) setSelectedId(data.result.id)
         setEditor(null)
-        showToast(editing ? '分组已更新' : '分组已创建')
+        showToast(editing ? 'Group updated' : 'Group created')
       }
 
       async function removeGroup() {
@@ -3074,7 +3074,7 @@ window.__ModuleLoader__.load({
         await store.mutate({ action: 'deleteGroup', groupId: deleteTarget.id })
         if (selectedId === deleteTarget.id) setSelectedId(null)
         setDeleteTarget(null)
-        showToast('分组已删除')
+        showToast('Group deleted')
       }
 
       const loading = state.status === 'loading' && state.groups.length === 0
@@ -3091,13 +3091,13 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'ma-page-copy' },
             h('div', { className: 'ma-kicker' }, h('i', null), 'MULTI-AGENT'),
-            h('h1', null, selectedGroup ? selectedGroup.name : 'Agent 分组'),
+            h('h1', null, selectedGroup ? selectedGroup.name : 'Agent Groups'),
             h(
               'p',
               null,
               selectedGroup
-                ? '管理成员与权限，查看组内任务、消息、用量与执行列表。'
-                : '按小组组织对话。进入分组后，在「管理组」「组内任务」「消息列表」「用量统计」「执行列表」之间切换。',
+                ? 'Manage members and permissions; view group tasks, messages, usage and activity.'
+                : 'Organize conversations into groups. Inside a group, switch between "Manage", "Tasks", "Messages", "Usage" and "Activity".',
             ),
           ),
           selectedGroup
@@ -3106,7 +3106,7 @@ window.__ModuleLoader__.load({
                 'button',
                 { type: 'button', className: 'ma-btn ma-btn-primary', onClick: () => setEditor({ mode: 'create' }) },
                 h(Icon, { name: 'plus', size: 16 }),
-                '新建分组',
+                'New group',
               ),
         ),
         selectedGroup
@@ -3114,14 +3114,14 @@ window.__ModuleLoader__.load({
           : h(
               'div',
               { className: 'ma-overview' },
-              h(StatItem, { icon: 'folder', value: stats.groups, label: '个分组' }),
-              h(StatItem, { icon: 'user', value: stats.sessions, label: '个对话已加入', tone: 'sky' }),
-              h(StatItem, { icon: 'crown', value: stats.leaders, label: '个组长席位', tone: 'amber' }),
+              h(StatItem, { icon: 'folder', value: stats.groups, label: 'groups' }),
+              h(StatItem, { icon: 'user', value: stats.sessions, label: 'conversations joined', tone: 'sky' }),
+              h(StatItem, { icon: 'crown', value: stats.leaders, label: 'leader seats', tone: 'amber' }),
               h(
                 'div',
                 { className: 'ma-overview-note' },
                 h(Icon, { name: 'shield', size: 14 }),
-                '每组 1 位组长 · 任务与用量按组隔离',
+                'One leader per group · tasks and usage are isolated per group',
               ),
             ),
         state.error
@@ -3133,7 +3133,7 @@ window.__ModuleLoader__.load({
               h(
                 'button',
                 { type: 'button', className: 'ma-alert-action', onClick: () => store.load(true).catch(() => {}) },
-                '重试',
+                'Retry',
               ),
             )
           : null,
@@ -3160,13 +3160,13 @@ window.__ModuleLoader__.load({
                   'div',
                   { className: 'ma-detail-empty' },
                   h('div', { className: 'ma-detail-empty-art' }, h(GroupGlyph, { size: 34 })),
-                  h('h2', null, state.groups.length === 0 ? '从第一个分组开始' : '没有匹配的分组'),
+                  h('h2', null, state.groups.length === 0 ? 'Start with your first group' : 'No matching groups'),
                   h(
                     'p',
                     null,
                     state.groups.length === 0
-                      ? '给负责同一件事的 Agent 建一个小组，再在对话顶部认领组长或成员。'
-                      : '换一个关键词试试，或清空搜索。',
+                      ? 'Create a group for agents working on the same thing, then claim leader or member from the top of a conversation.'
+                      : 'Try another keyword, or clear the search.',
                   ),
                   state.groups.length === 0
                     ? h(
@@ -3177,7 +3177,7 @@ window.__ModuleLoader__.load({
                           onClick: () => setEditor({ mode: 'create' }),
                         },
                         h(Icon, { name: 'plus', size: 16 }),
-                        '创建第一个分组',
+                        'Create the first group',
                       )
                     : h(
                         'button',
@@ -3186,7 +3186,7 @@ window.__ModuleLoader__.load({
                           className: 'ma-btn ma-btn-outline',
                           onClick: () => setQuery(''),
                         },
-                        '清空搜索',
+                        'Clear search',
                       ),
                 )
               : h(
@@ -3198,8 +3198,8 @@ window.__ModuleLoader__.load({
                     h(Icon, { name: 'search', size: 15 }),
                     h('input', {
                       value: query,
-                      placeholder: '搜索分组',
-                      'aria-label': '搜索分组',
+                      placeholder: 'Search groups',
+                      'aria-label': 'Search groups',
                       onChange: (event) => setQuery(event.target.value),
                     }),
                     query
@@ -3208,7 +3208,7 @@ window.__ModuleLoader__.load({
                           {
                             type: 'button',
                             className: 'ma-search-clear',
-                            'aria-label': '清空搜索',
+                            'aria-label': 'Clear search',
                             onClick: () => setQuery(''),
                           },
                           h(Icon, { name: 'x', size: 12 }),
@@ -3241,9 +3241,9 @@ window.__ModuleLoader__.load({
           ? h(
               ConfirmDialog,
               {
-                title: '删除分组？',
-                description: '这个操作不能撤销。',
-                confirmLabel: '确认删除',
+                title: 'Delete group?',
+                description: 'This cannot be undone.',
+                confirmLabel: 'Delete',
                 tone: 'danger',
                 onClose: () => setDeleteTarget(null),
                 onConfirm: removeGroup,
@@ -3251,8 +3251,8 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 null,
-                h('p', null, h('strong', null, deleteTarget.name), ' 及其成员关系、任务与执行记录将被移除。'),
-                h('p', { className: 'ma-muted' }, '对话本身不会被删除，只是不再属于这个分组。'),
+                h('p', null, h('strong', null, deleteTarget.name), ' and its membership, tasks and activity records will be removed.'),
+                h('p', { className: 'ma-muted' }, 'The conversation itself is kept; it simply leaves this group.'),
               ),
             )
           : null,
@@ -3346,8 +3346,8 @@ window.__ModuleLoader__.load({
         : null
       const displayTitle = displayNameOf(byId, sessionId)
       const triggerTitle = entries.length
-        ? entries.map((entry) => `${entry.group.name}（${roleLabel(entry.membership.role)}）`).join(' · ')
-        : '为这个对话选择分组'
+        ? entries.map((entry) => `${entry.group.name} (${roleLabel(entry.membership.role)})`).join(' · ')
+        : 'Pick groups for this conversation'
 
       useLayoutEffect(() => {
         if (!open) {
@@ -3420,7 +3420,7 @@ window.__ModuleLoader__.load({
             role,
             takeover: takeOver === true,
           })
-          setActionNotice(role === ROLE_LEADER ? `已加入「${group.name}」并成为组长` : `已加入「${group.name}」`)
+          setActionNotice(role === ROLE_LEADER ? `Joined "${group.name}" as leader` : `Joined "${group.name}"`)
         } catch (error) {
           if (error.code === 'LEADER_EXISTS') {
             setTakeover({
@@ -3429,7 +3429,7 @@ window.__ModuleLoader__.load({
               leaderSessionId: error.leaderSessionId,
             })
           } else {
-            setActionError(error.message || '操作失败，请稍后重试')
+            setActionError(error.message || 'Operation failed; try again later')
           }
         } finally {
           setPending(null)
@@ -3443,9 +3443,9 @@ window.__ModuleLoader__.load({
         setActionNotice(null)
         try {
           await store.mutate({ action: 'leave', sessionId, groupId: entry.group.id })
-          setActionNotice(`已退出「${entry.group.name}」`)
+          setActionNotice(`Left "${entry.group.name}"`)
         } catch (error) {
-          setActionError(error.message || '退出分组失败')
+          setActionError(error.message || 'Failed to leave the group')
         } finally {
           setPending(null)
         }
@@ -3458,8 +3458,8 @@ window.__ModuleLoader__.load({
           leaderSessionId: sessionId,
         })
         const group = data.result
-        if (!group) throw new Error('分组已创建，但没有返回分组信息')
-        setActionNotice(`已创建「${group.name}」，当前对话成为组长`)
+        if (!group) throw new Error('The group was created but no group info was returned')
+        setActionNotice(`Created "${group.name}"; this conversation is now the leader`)
         setCreatingGroup(false)
         setOpen(false)
         setManageGroupId(group.id)
@@ -3475,7 +3475,7 @@ window.__ModuleLoader__.load({
       async function commitRename() {
         const value = draftName.trim()
         if (!value) {
-          setRenameError('对话名称不能为空')
+          setRenameError('The conversation name cannot be empty')
           return
         }
         if (value === displayTitle) {
@@ -3483,7 +3483,7 @@ window.__ModuleLoader__.load({
           return
         }
         if (typeof renameSession !== 'function') {
-          setRenameError('当前环境不支持重命名')
+          setRenameError('Renaming is not supported in this environment')
           return
         }
         setRenameBusy(true)
@@ -3491,9 +3491,9 @@ window.__ModuleLoader__.load({
         try {
           await renameSession(sessionId, value)
           setRenaming(false)
-          setActionNotice('对话名称已更新')
+          setActionNotice('Conversation name updated')
         } catch (error) {
-          setRenameError(error.message || '重命名失败，请稍后重试')
+          setRenameError(error.message || 'Rename failed; try again later')
         } finally {
           setRenameBusy(false)
         }
@@ -3508,7 +3508,7 @@ window.__ModuleLoader__.load({
               ref: panelRef,
               className: 'ma-panel',
               role: 'dialog',
-              'aria-label': '对话分组',
+              'aria-label': 'Conversation groups',
               style: position
                 ? { left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight }
                 : { left: 0, top: 0, width: 420, visibility: 'hidden' },
@@ -3520,11 +3520,11 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'ma-panel-head-copy' },
                 h('div', { className: 'ma-panel-eyebrow' }, h('i', null), 'MULTI-AGENT'),
-                h('h3', null, '对话分组'),
+                h('h3', null, 'Conversation groups'),
                 h(
                   'div',
                   { className: 'ma-session-line' },
-                  h('span', { className: 'ma-session-label' }, '当前对话'),
+                  h('span', { className: 'ma-session-label' }, 'Current conversation'),
                   renaming
                     ? h(
                         'span',
@@ -3534,7 +3534,7 @@ window.__ModuleLoader__.load({
                           className: 'ma-rename-input',
                           value: draftName,
                           maxLength: 80,
-                          placeholder: '给这个对话取个名字',
+                          placeholder: 'Name this conversation',
                           onChange: (event) => {
                             setDraftName(event.target.value)
                             setRenameError(null)
@@ -3558,7 +3558,7 @@ window.__ModuleLoader__.load({
                             disabled: renameBusy,
                             onClick: commitRename,
                           },
-                          renameBusy ? '保存中' : '保存',
+                          renameBusy ? 'Saving' : 'Save',
                         ),
                         h(
                           'button',
@@ -3568,7 +3568,7 @@ window.__ModuleLoader__.load({
                             disabled: renameBusy,
                             onClick: () => setRenaming(false),
                           },
-                          '取消',
+                          'Cancel',
                         ),
                       )
                     : h(
@@ -3576,7 +3576,7 @@ window.__ModuleLoader__.load({
                         {
                           type: 'button',
                           className: 'ma-session-name',
-                          title: `${displayTitle} · 点击重命名`,
+                          title: `${displayTitle} · click to rename`,
                           onClick: startRename,
                         },
                         h('span', null, displayTitle),
@@ -3590,7 +3590,7 @@ window.__ModuleLoader__.load({
                 {
                   type: 'button',
                   className: 'ma-icon-btn',
-                  'aria-label': '关闭',
+                  'aria-label': 'Close',
                   onClick: () => setOpen(false),
                 },
                 h(Icon, { name: 'x', size: 17 }),
@@ -3602,7 +3602,7 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 { className: 'ma-section-head' },
-                h('span', null, '所属分组'),
+                h('span', null, 'Groups'),
                 h(
                   'span',
                   { className: 'ma-section-tools' },
@@ -3613,8 +3613,8 @@ window.__ModuleLoader__.load({
                 ? h(
                     'div',
                     { className: 'ma-current ma-current-empty' },
-                    h('div', { className: 'ma-current-top' }, h(Icon, { name: 'users', size: 15 }), h('strong', null, '尚未加入分组')),
-                    h('p', null, '从下方选择一个小队，成为成员或组长。一个对话可以同时加入多个分组。'),
+                    h('div', { className: 'ma-current-top' }, h(Icon, { name: 'users', size: 15 }), h('strong', null, 'Not in any group yet')),
+                    h('p', null, 'Pick a group below and join as member or leader. A conversation can join several groups.'),
                   )
                 : h(
                     'div',
@@ -3646,7 +3646,7 @@ window.__ModuleLoader__.load({
                                   setMessagesGroupId(entry.group.id)
                                 },
                               },
-                              '消息',
+                              'Messages',
                             ),
                             h(
                               'button',
@@ -3658,7 +3658,7 @@ window.__ModuleLoader__.load({
                                   setManageGroupId(entry.group.id)
                                 },
                               },
-                              '管理',
+                              'Manage',
                             ),
                             h(
                               'button',
@@ -3668,7 +3668,7 @@ window.__ModuleLoader__.load({
                                 disabled: Boolean(pending),
                                 onClick: () => leaveGroup(entry),
                               },
-                              pending === `leave:${entry.group.id}` ? '退出中…' : '退出',
+                              pending === `leave:${entry.group.id}` ? 'Leaving…' : 'Leave',
                             ),
                           ),
                         ),
@@ -3678,7 +3678,7 @@ window.__ModuleLoader__.load({
                         h(
                           'div',
                           { className: 'ma-membership-members' },
-                          h('span', { className: 'ma-membership-label' }, '成员'),
+                          h('span', { className: 'ma-membership-label' }, 'Member'),
                           h(MemberChips, {
                             state,
                             groupId: entry.group.id,
@@ -3696,7 +3696,7 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 { className: 'ma-section-head ma-section-head-spaced' },
-                h('span', null, '加入其它分组'),
+                h('span', null, 'Join another group'),
                 h('span', { className: 'ma-count-pill' }, availableGroups.length),
               ),
               availableGroups.length === 0
@@ -3708,10 +3708,10 @@ window.__ModuleLoader__.load({
                       'p',
                       null,
                       state.groups.length === 0
-                        ? '还没有分组，先创建一个小组。'
+                        ? 'No groups yet; create one first.'
                         : entries.length
-                          ? '这个对话已加入全部可用分组。'
-                          : '所有分组都已包含这个对话。',
+                          ? 'This conversation is in every available group.'
+                          : 'All groups already contain this conversation.',
                     ),
                     h(
                       'button',
@@ -3721,7 +3721,7 @@ window.__ModuleLoader__.load({
                         onClick: () => setCreatingGroup(true),
                       },
                       h(Icon, { name: 'plus', size: 14 }),
-                      '创建分组',
+                      'Create group',
                     ),
                   )
                 : h(
@@ -3752,11 +3752,11 @@ window.__ModuleLoader__.load({
                                   Fragment,
                                   null,
                                   h(Icon, { name: 'crown', size: 11 }),
-                                  h('span', { title: displayNameOf(byId, leaderId) }, `组长 ${displayNameOf(byId, leaderId)}`),
+                                  h('span', { title: displayNameOf(byId, leaderId) }, `leader ${displayNameOf(byId, leaderId)}`),
                                 )
-                              : h(Fragment, null, h(Icon, { name: 'crown', size: 11 }), h('span', null, '组长空缺')),
+                              : h(Fragment, null, h(Icon, { name: 'crown', size: 11 }), h('span', null, 'Leader vacant')),
                             h('i', null),
-                            h('span', null, `${members.length} 位成员`),
+                            h('span', null, `${members.length} members`),
                           ),
                         ),
                         h(
@@ -3770,7 +3770,7 @@ window.__ModuleLoader__.load({
                               disabled: Boolean(pending),
                               onClick: () => assign(group, ROLE_MEMBER),
                             },
-                            isPendingMember ? '加入中…' : '成员',
+                            isPendingMember ? 'Joining…' : 'Member',
                           ),
                           h(
                             'button',
@@ -3780,7 +3780,7 @@ window.__ModuleLoader__.load({
                               disabled: Boolean(pending),
                               onClick: () => assign(group, ROLE_LEADER),
                             },
-                            isPendingLeader ? '认领中…' : '组长',
+                            isPendingLeader ? 'Claiming…' : 'Leader',
                           ),
                         ),
                         takeover && takeover.groupId === group.id
@@ -3790,7 +3790,7 @@ window.__ModuleLoader__.load({
                               h(
                                 'span',
                                 null,
-                                `已有组长 ${displayNameOf(byId, takeover.leaderSessionId)}，接管后对方会转为成员。`,
+                                `A leader already exists (${displayNameOf(byId, takeover.leaderSessionId)}); taking over makes them a member.`,
                               ),
                               h(
                                 'button',
@@ -3800,7 +3800,7 @@ window.__ModuleLoader__.load({
                                   disabled: Boolean(pending),
                                   onClick: () => assign(group, ROLE_LEADER, true),
                                 },
-                                '确认接管',
+                                'Confirm takeover',
                               ),
                             )
                           : null,
@@ -3820,7 +3820,7 @@ window.__ModuleLoader__.load({
               'div',
               { className: 'ma-panel-foot' },
               h(Icon, { name: 'shield', size: 14 }),
-              h('span', null, '每个分组独立计算权限；一个对话可同时属于多个分组。'),
+              h('span', null, 'Permissions are per group; a conversation can belong to several groups.'),
             ),
           ),
           document.body,
@@ -3848,7 +3848,7 @@ window.__ModuleLoader__.load({
           },
           h('span', { className: 'ma-trigger-icon' }, h(Icon, { name: entries.length ? 'users' : 'plus', size: 15 })),
           entries.length === 0
-            ? h('span', { className: 'ma-trigger-name' }, '加入分组')
+            ? h('span', { className: 'ma-trigger-name' }, 'Join group')
             : entries.length === 1
               ? h(
                   Fragment,
@@ -3863,11 +3863,11 @@ window.__ModuleLoader__.load({
               : h(
                   Fragment,
                   null,
-                  h('span', { className: 'ma-trigger-name' }, `${entries.length} 个分组`),
+                  h('span', { className: 'ma-trigger-name' }, `${entries.length} groups`),
                   h(
                     'span',
                     { className: cx('ma-trigger-role', leaderCount > 0 && 'is-leader') },
-                    leaderCount > 0 ? `${leaderCount} 组长` : '成员',
+                    leaderCount > 0 ? `${leaderCount} leader seats` : 'Member',
                   ),
                 ),
           h(Icon, { name: 'chevron', size: 13, className: 'ma-trigger-chevron' }),
@@ -3909,9 +3909,9 @@ window.__ModuleLoader__.load({
     const TASK_CARD_W = 232
     const TASK_CARD_H = 112
     const TASK_STATUS = {
-      todo: { label: '待开始', tone: 'todo' },
-      doing: { label: '进行中', tone: 'doing' },
-      done: { label: '已完成', tone: 'done' },
+      todo: { label: 'To do', tone: 'todo' },
+      doing: { label: 'In progress', tone: 'doing' },
+      done: { label: 'Done', tone: 'done' },
     }
 
     function taskStatusMeta(status) {
@@ -3971,7 +3971,7 @@ window.__ModuleLoader__.load({
             assigneeSessionId: assignee,
           })
         } catch (caught) {
-          setError(caught.message || '保存任务失败，请稍后重试')
+          setError(caught.message || 'Failed to save the task; try again later')
           setSaving(false)
         }
       }
@@ -3979,20 +3979,20 @@ window.__ModuleLoader__.load({
       return h(
         Modal,
         {
-          title: task ? '编辑任务' : '新建任务',
+          title: task ? 'Edit task' : 'New task',
           description: task
-            ? '修改标题、说明、状态或负责人；已有的连线不会受影响。'
-            : '任务会追加到列表末尾并从上往下排列；创建后点击卡片即可与其它任务连线。',
+            ? 'Edit the title, description, status or assignee; existing edges are unaffected.'
+            : 'Tasks append to the end of the list and stack top to bottom; after creating one, click cards to link them.',
           onClose,
           footer: h(
             Fragment,
             null,
             h('span', { className: 'ma-task-foot-spacer' }),
-            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, '取消'),
+            h('button', { type: 'button', className: 'ma-btn ma-btn-ghost', onClick: onClose }, 'Cancel'),
             h(
               'button',
               { type: 'button', className: 'ma-btn ma-btn-primary', disabled: !canSave, onClick: submit },
-              saving ? '保存中…' : task ? '保存修改' : '创建任务',
+              saving ? 'Saving…' : task ? 'Save changes' : 'Create task',
             ),
           ),
         },
@@ -4002,13 +4002,13 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '任务标题', h('em', null, '必填')),
+            h('span', { className: 'ma-field-label' }, 'Task title', h('em', null, 'Required')),
             h('input', {
               ref: titleRef,
               className: 'ma-input',
               value: title,
               maxLength: 80,
-              placeholder: '例如：整理排序算法需求',
+              placeholder: 'e.g. Gather sorting algorithm requirements',
               onChange: (event) => setTitle(event.target.value),
             }),
             h('span', { className: 'ma-field-hint' }, `${title.trim().length}/80`),
@@ -4016,13 +4016,13 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '任务说明'),
+            h('span', { className: 'ma-field-label' }, 'Task description'),
             h('textarea', {
               className: 'ma-textarea',
               value: description,
               maxLength: 600,
               rows: 4,
-              placeholder: '写下任务的目标、输入输出或验收标准。',
+              placeholder: 'Write the goal, inputs and outputs, or acceptance criteria.',
               onChange: (event) => setDescription(event.target.value),
             }),
             h('span', { className: 'ma-field-hint' }, `${description.trim().length}/600`),
@@ -4030,7 +4030,7 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '状态'),
+            h('span', { className: 'ma-field-label' }, 'Status'),
             h(
               'select',
               {
@@ -4038,15 +4038,15 @@ window.__ModuleLoader__.load({
                 value: status,
                 onChange: (event) => setStatus(event.target.value),
               },
-              h('option', { value: 'todo' }, '待开始'),
-              h('option', { value: 'doing' }, '进行中'),
-              h('option', { value: 'done' }, '已完成'),
+              h('option', { value: 'todo' }, 'To do'),
+              h('option', { value: 'doing' }, 'In progress'),
+              h('option', { value: 'done' }, 'Done'),
             ),
           ),
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, '负责人（归属）'),
+            h('span', { className: 'ma-field-label' }, 'Assignee'),
             h(
               'select',
               {
@@ -4054,16 +4054,16 @@ window.__ModuleLoader__.load({
                 value: assignee,
                 onChange: (event) => setAssignee(event.target.value),
               },
-              h('option', { value: '' }, '未分配'),
+              h('option', { value: '' }, 'Unassigned'),
               members.map((member) =>
                 h(
                   'option',
                   { key: member.sessionId, value: member.sessionId, title: member.sessionId },
-                  `${shortSessionId(member.sessionId)}${member.role === 'leader' ? '（组长）' : ''}`,
+                  `${shortSessionId(member.sessionId)}${member.role === 'leader' ? ' (leader)' : ''}`,
                 ),
               ),
             ),
-            h('span', { className: 'ma-field-hint' }, '只有负责人或组长可以更改任务状态。'),
+            h('span', { className: 'ma-field-hint' }, 'Only the assignee or the leader can change the task status.'),
           ),
           error
             ? h('div', { className: 'ma-form-error', role: 'alert' }, h(Icon, { name: 'info', size: 15 }), error)
@@ -4199,9 +4199,9 @@ window.__ModuleLoader__.load({
         setBusy(true)
         try {
           await store.mutate({ action: 'deleteTaskEdge', edgeId: edge.id })
-          showNotice('连线已删除')
+          showNotice('Edge deleted')
         } catch (caught) {
-          showNotice(caught.message || '删除连线失败', 'error')
+          showNotice(caught.message || 'Failed to delete the edge', 'error')
         } finally {
           setBusy(false)
         }
@@ -4214,14 +4214,14 @@ window.__ModuleLoader__.load({
           try {
             await store.mutate({ action: 'updateTask', taskId: editor.task.id, ...values })
             setEditor(null)
-            showNotice('任务已保存')
+            showNotice('Task saved')
           } finally {
             setBusy(false)
           }
           return
         }
         if (!effectiveGroupId) {
-          showNotice('任务归属于分组，请先在「Agent 分组」中创建分组', 'error')
+          showNotice('Tasks belong to groups; create a group in "Agent Groups" first', 'error')
           return
         }
         setBusy(true)
@@ -4235,7 +4235,7 @@ window.__ModuleLoader__.load({
             ...values,
           })
           setEditor(null)
-          showNotice('任务已创建')
+          showNotice('Task created')
         } finally {
           setBusy(false)
         }
@@ -4244,7 +4244,7 @@ window.__ModuleLoader__.load({
       async function deleteTask(task) {
         await store.mutate({ action: 'deleteTask', taskId: task.id })
         setDeleteTarget(null)
-        showNotice('任务已删除')
+        showNotice('Task deleted')
       }
 
       async function handleCardClick(task) {
@@ -4261,9 +4261,9 @@ window.__ModuleLoader__.load({
         try {
           await store.mutate({ action: 'createTaskEdge', from: linkFrom, to: task.id })
           setLinkFrom(null)
-          showNotice('已创建连线')
+          showNotice('Edge created')
         } catch (caught) {
-          showNotice(caught.message || '创建连线失败', 'error')
+          showNotice(caught.message || 'Failed to create the edge', 'error')
         } finally {
           setBusy(false)
         }
@@ -4299,7 +4299,7 @@ window.__ModuleLoader__.load({
                 className: 'ma-task-edge-hit',
                 d: path,
                 onClick: () => removeEdge(edge),
-                'aria-label': '删除这条连线',
+                'aria-label': 'Delete this edge',
               }),
               h('path', { className: 'ma-task-edge-line', d: path, markerEnd: 'url(#ma-task-arrow)' }),
             ),
@@ -4317,11 +4317,11 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'ma-page-copy' },
             h('div', { className: 'ma-kicker' }, h('i', null), 'MULTI-AGENT'),
-            h('h1', null, '任务'),
+            h('h1', null, 'Tasks'),
             h(
               'p',
               null,
-              '任务从上往下排列：点击一张卡片，再点另一张即可连成 a → b → c。同一层的任务可以并行推进。',
+              'Tasks stack top to bottom: click one card then another to link them a → b → c. Tasks on the same level can run in parallel.',
             ),
           ),
           h(
@@ -4332,14 +4332,14 @@ window.__ModuleLoader__.load({
               disabled: groups.length === 0,
               onClick: () => {
                 if (groups.length === 0) {
-                  showNotice('任务归属于分组，请先在「Agent 分组」中创建分组', 'error')
+                  showNotice('Tasks belong to groups; create a group in "Agent Groups" first', 'error')
                   return
                 }
                 setEditor({ task: null })
               },
             },
             h(Icon, { name: 'plus', size: 16 }),
-            '新建任务',
+            'New task',
           ),
         ),
         h(
@@ -4348,7 +4348,7 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { className: 'ma-task-group' },
-            h('span', null, '分组'),
+            h('span', null, 'Group'),
             h(
               'select',
               {
@@ -4361,15 +4361,15 @@ window.__ModuleLoader__.load({
                 },
               },
               groups.length === 0
-                ? h('option', { value: '' }, '暂无分组')
+                ? h('option', { value: '' }, 'No groups')
                 : groups.map((group) => h('option', { key: group.id, value: group.id }, group.name)),
             ),
           ),
           h(
             'span',
             { className: 'ma-task-counts' },
-            h('span', { className: 'ma-count-pill' }, `${tasks.length} 个任务`),
-            h('span', { className: 'ma-count-pill' }, `${edges.length} 条连线`),
+            h('span', { className: 'ma-count-pill' }, `${tasks.length} tasks`),
+            h('span', { className: 'ma-count-pill' }, `${edges.length} edges`),
           ),
           embedded
             ? h(
@@ -4381,21 +4381,21 @@ window.__ModuleLoader__.load({
                   onClick: () => setEditor({ task: null }),
                 },
                 h(Icon, { name: 'plus', size: 14 }),
-                '新建任务',
+                'New task',
               )
             : null,
           h(
             'span',
             { className: 'ma-task-hint' },
             linkedTask
-              ? `已选中「${linkedTask.title}」，再点击另一张卡片完成连线（Esc 取消）`
-              : '单击卡片选中后连线 · 双击编辑 · 点击连线删除',
+              ? `Selected "${linkedTask.title}"; click another card to finish the link (Esc to cancel)`
+              : 'Click a card to select and link · double-click to edit · click an edge to delete',
           ),
           linkedTask
             ? h(
                 'button',
                 { type: 'button', className: 'ma-btn ma-btn-outline ma-btn-sm', onClick: () => setLinkFrom(null) },
-                '取消连线',
+                'Cancel link',
               )
             : null,
         ),
@@ -4408,7 +4408,7 @@ window.__ModuleLoader__.load({
               h(
                 'button',
                 { type: 'button', className: 'ma-alert-action', onClick: () => store.load(true).catch(() => {}) },
-                '重试',
+                'Retry',
               ),
             )
           : null,
@@ -4420,13 +4420,13 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'ma-task-empty' },
                 h(TaskGlyph),
-                h('strong', null, groups.length === 0 ? '还没有可用的分组' : '还没有任务卡片'),
+                h('strong', null, groups.length === 0 ? 'No groups available yet' : 'No task cards yet'),
                 h(
                   'p',
                   null,
                   groups.length === 0
-                    ? '任务归属于分组，请先在「Agent 分组」中创建一个分组，再回到这里添加任务。'
-                    : '新建第一张卡片，再依次点击两张卡片创建连线，任务会从上往下自动排列。',
+                    ? 'Tasks belong to groups; create one in "Agent Groups" first, then come back to add tasks.'
+                    : 'Create the first card, then click two cards to link them; tasks stack top to bottom automatically.',
                 ),
               )
             : h(
@@ -4470,7 +4470,7 @@ window.__ModuleLoader__.load({
                         else cardRefs.current.delete(task.id)
                       },
                       className: cx('ma-task-card', linkFrom === task.id && 'is-linking'),
-                      title: '单击选中后连线 · 双击编辑',
+                      title: 'Click to select and link · double-click to edit',
                       onClick: (event) => {
                         if (event.target instanceof Element && event.target.closest('button')) return
                         handleCardClick(task)
@@ -4492,8 +4492,8 @@ window.__ModuleLoader__.load({
                           {
                             type: 'button',
                             className: 'ma-task-mini',
-                            title: '编辑任务',
-                            'aria-label': '编辑任务',
+                            title: 'Edit task',
+                            'aria-label': 'Edit task',
                             onClick: () => setEditor({ task }),
                           },
                           h(Icon, { name: 'pencil', size: 12 }),
@@ -4503,8 +4503,8 @@ window.__ModuleLoader__.load({
                           {
                             type: 'button',
                             className: 'ma-task-mini is-danger',
-                            title: '删除任务',
-                            'aria-label': '删除任务',
+                            title: 'Delete task',
+                            'aria-label': 'Delete task',
                             onClick: () => setDeleteTarget(task),
                           },
                           h(Icon, { name: 'trash', size: 12 }),
@@ -4517,8 +4517,8 @@ window.__ModuleLoader__.load({
                       'span',
                       { className: cx('ma-task-assignee', task.assigneeSessionId && 'is-assigned') },
                       task.assigneeSessionId
-                        ? `负责人 ${shortSessionId(task.assigneeSessionId)}`
-                        : '未分配',
+                        ? `assignee ${shortSessionId(task.assigneeSessionId)}`
+                        : 'Unassigned',
                     ),
                     task.description ? h('p', { className: 'ma-task-desc' }, task.description) : null,
                   )
@@ -4535,9 +4535,9 @@ window.__ModuleLoader__.load({
           : null,
         deleteTarget
           ? h(ConfirmDialog, {
-              title: '删除任务',
-              description: `确定要删除「${deleteTarget.title}」吗？与它相连的连线也会一并删除。`,
-              confirmLabel: '删除任务',
+              title: 'Delete task',
+              description: `Delete "${deleteTarget.title}"? Its edges will be deleted too.`,
+              confirmLabel: 'Delete task',
               tone: 'danger',
               onClose: () => setDeleteTarget(null),
               onConfirm: () => deleteTask(deleteTarget),
@@ -5942,10 +5942,146 @@ window.__ModuleLoader__.load({
       document.head.appendChild(style)
     }
 
-    const inject = ['slots', 'sessions']
+
+    const MA_ZH_EXACT = {"User":"用户","leader":"组长","member":"成员","Current workspace":"当前工作区","G":"组","Cannot connect to the group service; make sure the plugin finished loading":"无法连接分组服务，请确认插件已加载完成","Close":"关闭","Save failed; try again later":"保存失败，请稍后重试","Edit group":"编辑分组","New group":"新建分组","Edit the name, description or color. Leadership only moves through takeover; it cannot be revoked directly.":"修改名称、说明或标识色。组长只能通过接管转移，不能直接取消。","A leader must be chosen at creation; a group never has a leader vacancy.":"创建时必须指定一位组长，分组不会出现组长空缺。","Cancel":"取消","Saving…":"保存中…","Save changes":"保存修改","Create group":"创建分组","Group name":"分组名称","Required":"必填","e.g. Product R&D":"例如：产品研发组","Group description":"分组说明","What does this group do? Visible to agents that join later.":"这个小组负责什么？写给之后加入的 Agent 看。","First leader":"首任组长","The current conversation becomes the leader automatically":"当前对话将自动成为组长","Choose a leader":"选择一位组长","No sessions available in the current workspace; create or open a conversation on the left first.":"当前工作区没有可用会话，请先在左侧创建或打开一个对话。","Each group has exactly one leader; add other members later.":"每个分组必须且只能有一位组长；其他成员后续添加。","Color":"标识色","Operation failed; try again later":"操作失败，请稍后重试","Working…":"处理中…","Current":"当前","No members":"暂无成员"," · leader vacant":" · 组长空缺","read-only":"只读","read/write":"读写","open":"使用","move":"移动","copy":"复制","The plugin service has not loaded a new version yet; restart DSH to see the token report":"插件服务尚未加载新版本，重启 DSH 后即可看到 Token 报表","Failed to load the token report":"Token 报表加载失败","Token usage":"Token 用量","Refreshing…":"刷新中…","Refresh":"刷新","Group total":"组内共消耗","Counting member usage…":"正在统计成员用量…","This group has no members yet, so there is no usage.":"这个分组还没有成员，暂无用量。","Leader":"组长","Member":"成员","Summed from the tokens actually reported by the provider (including cached reads and output); shares are rounded to 1% of the group total.":"按 provider 实际回报的 tokens 累计（含缓存读取与输出）；占比按组内总量四舍五入到 1%。","Activity":"执行列表","In use only":"只看占用中","Show all":"显示全部","Enter a member ID to search all records; append a number for the latest N":"输入组员 ID 搜索全部记录，可加数字取最近条数","Search activity by member ID":"按组员 ID 搜索执行记录","No activity matches this member.":"这个组员没有匹配的执行记录。","No activity yet. Entries appear here automatically when a member opens or edits a workspace file.":"还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。","No files are in use right now.":"当前没有文件被占用。","No group description yet.":"还没有填写分组说明。","Leader vacant":"组长空缺","Delete group":"删除分组","Set a member as leader directly in the list below, or claim it from the top entry after opening a member conversation.":"可在下方成员列表中直接设为组长，或进入成员对话后从顶部入口认领。","Messages":"消息","Manage group":"管理组","Add members":"添加成员","No members yet":"还没有成员","Scan conversations in the current workspace to add members, or open a conversation and join a group from the top.":"扫描当前工作区的对话添加成员，或打开对话在顶部选择加入分组。","Scan sessions and add":"扫描会话并添加","Permission":"权限","Joined":"加入时间","Actions":"操作","A group must keep a leader; set another member as leader first":"分组必须保留组长，可先把其他成员设为组长","Current leader":"当前组长","Make a regular member of this group":"转为本组普通成员","Make member":"转为成员","Take over as leader":"接管本组组长","Set as leader":"设为组长","Remove":"移出","A conversation can belong to several groups. Member names come from the conversation title and follow renames.":"一个对话可以同时属于多个分组。这里的成员名称来自对话标题，改名会同步更新。","All workspaces":"全部工作区","Failed to add members; try again later":"添加成员失败，请稍后重试","Scan sessions in the current workspace and pick conversations to join this group.":"扫描当前工作区的会话，选择要加入这个分组的对话。","No sessions selected":"尚未选择会话","Adding…":"添加中…","Workspace":"工作区","Search sessions in the current workspace":"搜索当前工作区的会话","Search sessions":"搜索会话","Sessions that can be added":"可添加的会话","No matching sessions":"没有匹配的会话","No sessions can be added from the current workspace":"当前工作区没有可添加的会话","Try another keyword, or switch workspace.":"换一个关键词试试，或切换工作区。","Sessions in this workspace may all have joined a group, or there are no other sessions.":"这个工作区的会话可能都已加入分组，或还没有其他会话。","Join as":"加入身份","Only one leader can be added at a time":"每次只能添加一位组长","Several members can be added at once":"可一次添加多位成员","Only one leader can be added at a time; select fewer or choose member instead.":"一次只能添加一位组长，请减少选择或改为成员。","Failed to load the model list":"模型列表加载失败","Pick a model first":"请先选择一个模型","Saved: new sessions use the specified model":"已保存：新会话使用指定模型","Saved: new sessions inherit the leader settings":"已保存：新会话继承组长设置","New session inheritance":"新会话继承","Custom":"自定义","Inherit from leader":"继承组长","Model and reasoning effort used when the leader creates a conversation with the \"spawn member session\" tool; new sessions inherit no conversation context.":"组长用「创建成员会话」工具新建对话时使用的模型与推理等级；新会话不继承任何对话上下文。","Specified model":"指定模型","Model":"模型","Loading the model list…":"正在读取模型列表…","Failed to load the model list; try again later":"模型列表加载失败，请稍后重试","No models available right now":"当前没有可用模型","Reasoning effort":"推理等级","Default":"默认","This model has no adjustable reasoning effort.":"这个模型没有可调整的推理等级。","Pick a model to adjust reasoning effort.":"选择模型后可调整推理等级。","Reads the current model and reasoning effort of the leader at creation time.":"创建时读取组长当前的模型与推理等级。","Save inheritance settings":"保存继承配置","Enter an integer between 2 and 32":"请输入 2–32 之间的整数","Max sessions":"最大会话数","Max sessions this group can hold (including the leader)":"这个团队最多容纳的会话数（含组长）","Save":"保存","Only you (the user) can change this; it caps leader spawning and member joins. Keep the number of task modules around \"max sessions − 1\".":"只有你（用户）可以修改；组长创建成员会话、成员加入时都会受此上限约束。实际任务模块数量建议保持在“最大会话数 − 1”左右。","Failed to change permission; try again later":"权限调整失败，请稍后重试","Failed to remove the member; try again later":"移出成员失败，请稍后重试","Members and permissions":"成员与权限","Make ":"将 "," the leader; the current leader ":" 设为组长，现任组长 "," becomes a member automatically.":" 会自动转为成员。","Confirm takeover":"确认接管"," from this group? Its role in other groups is unaffected.":" 移出这个分组？该对话在其他分组中的角色不受影响。","Confirm removal":"确认移出","Add or remove members and adjust leader and member permissions.":"添加或移出成员，调整组长与成员权限。","Done":"完成","Broadcast":"广播","Delivery failed":"投递失败","Delivered":"已送达","Delivering":"投递中","You must reply after receiving it: call the multi_agent_message tool (op=\"-r\") and pass content to reply.":"收到后必须回复：调用 multi_agent_message 工具（op=\"-r\"），传 content 即可回复。","Failed to load the message queue":"消息队列加载失败","Interjection delivery failed":"插话投递失败","The message was recorded but no delivery info was returned":"消息已记录，但没有返回投递信息","Send failed; try again later":"发送失败，请稍后重试","Reply recorded and shown to the user":"回复已记录并展示给用户","Reply interjected to the original sender":"回复已插话发送给原发送者","Reply failed; try again later":"回复失败，请稍后重试","User (me) · Console":"用户（我） · 控制台","This conversation is no longer in this group":"当前对话已不在这个分组","View identity":"查看身份","User view · all group messages":"用户视图 · 全组消息","Leader view · all group messages":"组长视图 · 全组消息","Member view · related to me":"成员视图 · 与我相关"," queued messages":" 条队列消息"," awaiting my reply":" 条待我回复"," sent by me":" 条我发出的","Send interjection":"插话发送","Whole group":"广播全员","Private message":"私聊","To":"发给","No other members":"没有其他成员","The group has no other members yet":"组内还没有其他成员","Reply now":"去回复","Write a broadcast; every group member receives an interjection…":"写一条广播消息，所有组内成员都会收到插话…","Write a private message; only the selected members receive an interjection…":"写一条私聊消息，只有选中的成员会收到插话…","Sending…":"发送中…","Message queue":"消息队列","Loading the message queue…":"正在读取消息队列…","No messages awaiting a reply.":"没有待回复消息。","You have not sent any messages yet.":"你还没有发送过消息。","The queue is empty; send the first group message.":"队列还是空的，发送第一条组内消息。","Sent by me":"我发出的","Reply delivery failed":"回复投递失败","Replied":"已回复","No reply needed":"无需回复","Awaiting reply":"待回复","Reply to this message; the reply appears in the message queue of the user…":"回复这条消息，回复会展示在用户的消息队列…","Reply to this message; the reply is interjected to the original sender…":"回复这条消息，回复会插话发送给原发送者…","Replying lifts the send restriction":"回复后即可解除发送限制","The reply goes into the message queue":"回复内容会进入消息队列","Replying…":"回复中…","Send reply":"发送回复","Reply":"回复","You are viewing all broadcasts and private messages as the user; member replies appear in the queue of this message.":"你正以用户身份查看全组广播与私聊；成员回复会显示在这条消息的队列中。","The leader sees the broadcast and private message queues of the group; members see only messages related to them.":"组长可查看本组广播与私聊队列；成员只能查看与自己相关的消息。","Every member must reply to received messages; without a reply no new message can be sent.":"每个成员必须回复收到的消息；未回复时不能发送新消息。","Broadcasts and private messages reach conversations as interjections; recipients must reply.":"组内广播与私聊都通过插话送达目标对话；收到消息的成员需要回复。","Group tasks":"组内任务","Usage":"用量统计","All groups":"全部分组","No description yet":"还没有填写说明","Group updated":"分组已更新","Group created":"分组已创建","Group deleted":"分组已删除","Agent Groups":"Agent 分组","Manage members and permissions; view group tasks, messages, usage and activity.":"管理成员与权限，查看组内任务、消息、用量与执行列表。","Organize conversations into groups. Inside a group, switch between \"Manage\", \"Tasks\", \"Messages\", \"Usage\" and \"Activity\".":"按小组组织对话。进入分组后，在「管理组」「组内任务」「消息列表」「用量统计」「执行列表」之间切换。","groups":"个分组","conversations joined":"个对话已加入","leader seats":"个组长席位","One leader per group · tasks and usage are isolated per group":"每组 1 位组长 · 任务与用量按组隔离","Retry":"重试","Start with your first group":"从第一个分组开始","No matching groups":"没有匹配的分组","Create a group for agents working on the same thing, then claim leader or member from the top of a conversation.":"给负责同一件事的 Agent 建一个小组，再在对话顶部认领组长或成员。","Try another keyword, or clear the search.":"换一个关键词试试，或清空搜索。","Create the first group":"创建第一个分组","Clear search":"清空搜索","Search groups":"搜索分组","Delete group?":"删除分组？","This cannot be undone.":"这个操作不能撤销。","Delete":"确认删除"," and its membership, tasks and activity records will be removed.":" 及其成员关系、任务与执行记录将被移除。","The conversation itself is kept; it simply leaves this group.":"对话本身不会被删除，只是不再属于这个分组。","Pick groups for this conversation":"为这个对话选择分组","Failed to leave the group":"退出分组失败","The group was created but no group info was returned":"分组已创建，但没有返回分组信息","The conversation name cannot be empty":"对话名称不能为空","Renaming is not supported in this environment":"当前环境不支持重命名","Conversation name updated":"对话名称已更新","Rename failed; try again later":"重命名失败，请稍后重试","Conversation groups":"对话分组","Current conversation":"当前对话","Name this conversation":"给这个对话取个名字","Saving":"保存中","Groups":"所属分组","Not in any group yet":"尚未加入分组","Pick a group below and join as member or leader. A conversation can join several groups.":"从下方选择一个小队，成为成员或组长。一个对话可以同时加入多个分组。","Manage":"管理","Leaving…":"退出中…","Leave":"退出","Join another group":"加入其它分组","No groups yet; create one first.":"还没有分组，先创建一个小组。","This conversation is in every available group.":"这个对话已加入全部可用分组。","All groups already contain this conversation.":"所有分组都已包含这个对话。","Joining…":"加入中…","Claiming…":"认领中…","Permissions are per group; a conversation can belong to several groups.":"每个分组独立计算权限；一个对话可同时属于多个分组。","Join group":"加入分组","To do":"待开始","In progress":"进行中","Failed to save the task; try again later":"保存任务失败，请稍后重试","Edit task":"编辑任务","New task":"新建任务","Edit the title, description, status or assignee; existing edges are unaffected.":"修改标题、说明、状态或负责人；已有的连线不会受影响。","Tasks append to the end of the list and stack top to bottom; after creating one, click cards to link them.":"任务会追加到列表末尾并从上往下排列；创建后点击卡片即可与其它任务连线。","Create task":"创建任务","Task title":"任务标题","e.g. Gather sorting algorithm requirements":"例如：整理排序算法需求","Task description":"任务说明","Write the goal, inputs and outputs, or acceptance criteria.":"写下任务的目标、输入输出或验收标准。","Status":"状态","Assignee":"负责人（归属）","Unassigned":"未分配","Only the assignee or the leader can change the task status.":"只有负责人或组长可以更改任务状态。","Edge deleted":"连线已删除","Failed to delete the edge":"删除连线失败","Task saved":"任务已保存","Tasks belong to groups; create a group in \"Agent Groups\" first":"任务归属于分组，请先在「Agent 分组」中创建分组","Task created":"任务已创建","Task deleted":"任务已删除","Edge created":"已创建连线","Failed to create the edge":"创建连线失败","Delete this edge":"删除这条连线","Tasks":"任务","Tasks stack top to bottom: click one card then another to link them a → b → c. Tasks on the same level can run in parallel.":"任务从上往下排列：点击一张卡片，再点另一张即可连成 a → b → c。同一层的任务可以并行推进。","Group":"分组","No groups":"暂无分组","Click a card to select and link · double-click to edit · click an edge to delete":"单击卡片选中后连线 · 双击编辑 · 点击连线删除","Cancel link":"取消连线","No groups available yet":"还没有可用的分组","No task cards yet":"还没有任务卡片","Tasks belong to groups; create one in \"Agent Groups\" first, then come back to add tasks.":"任务归属于分组，请先在「Agent 分组」中创建一个分组，再回到这里添加任务。","Create the first card, then click two cards to link them; tasks stack top to bottom automatically.":"新建第一张卡片，再依次点击两张卡片创建连线，任务会从上往下自动排列。","Click to select and link · double-click to edit":"单击选中后连线 · 双击编辑","Delete task":"删除任务","Failed to rename the conversation":"重命名对话失败","[dsh-multi-agent] Failed to register the groups page:":"[dsh-multi-agent] 无法注册分组主页：","[dsh-multi-agent] Failed to register the sidebar entry:":"[dsh-multi-agent] 无法注册侧栏入口：","[dsh-multi-agent] Failed to register the conversation action:":"[dsh-multi-agent] 无法注册对话操作："}
+    const MA_ZH_PATTERNS = [["Conversation (.+?)","对话 $1"],["Group service returned an error \\((.+?)\\)","分组服务返回了错误（$1）"],["Pick color (.+?)","选择颜色 $1"],["(.+?) · (.+?)(.+?)","$1 · $2$3"],["(.+?) members","$1 位成员"],[" · leader (.+?)"," · 组长 $1"],["(.+?) records","$1 条记录"],["(.+?) in use","$1 占用中"],["leader (.+?)","组长 $1"],["Updated (.+?)","更新于 $1"],["Edit (.+?)","编辑 $1"],["Delete (.+?)","删除 $1"],["Add members · (.+?)","添加成员 · $1"],["Selected (.+?)","已选择 $1 位"],["(.+?) available","$1 个可选"],["The current leader is (.+?); setting a new leader makes them a member automatically\\.","当前组长是 $1，设为组长后对方会自动转为成员。"],["There are already (.+?) sessions; the limit cannot be lower","当前已有 $1 个会话，不能小于这个数量"],["Max sessions set to (.+?)","最大会话数已调整为 $1"],["Made (.+?) the leader","已将 $1 设为组长"],["Made (.+?) a member","已将 $1 转为成员"],["Removed (.+?) from the group","已将 $1 移出分组"],["Manage \"(.+?)\"","管理「$1」"],["Added (.+?) members","已添加 $1 位成员"],["Private message to (.+?)","私聊给 $1"],["Broadcast to (.+?) members","广播给 $1 位成员"],["\\[Group message \\| (.+?)\\]","【分组消息｜$1】"],["(.+?) sent you a message:","$1 向你发送了一条消息："],["Message ID: (.+?)","消息编号：$1"],["\\[Group reply \\| (.+?)\\]","【分组回复｜$1】"],["(.+?) replied to your message:","$1 回复了你的消息："],["Original message ID: (.+?)","原消息编号：$1"],["Message interjected to (.+?) members","消息已插话发送给 $1 位成员"],["Delivered to (.+?); (.+?) failed; the failed records stay in the queue","已投递 $1 位，$2 位投递失败；失败记录已保留在队列中"],["Sender: (.+?)","发送人：$1"],["Will be interjected to all (.+?) members as the user","将以「用户」身份插话发送给全部 $1 位成员"],["Will be interjected to the other (.+?) members","将插话发送给另外 $1 位成员"],["You have (.+?) messages awaiting a reply\\. Reply first to send new messages\\.","你有 $1 条消息待回复。先完成回复，才能继续发送新消息。"],["(.+?)/4000 · Ctrl\\+Enter to send","$1/4000 · Ctrl+Enter 发送"],["All (.+?)","全部 $1"],["Awaiting my reply (.+?)","待我回复 $1"],["Sent by me (.+?)","我发出的 $1"],["(.+?) · (.+?)","$1 · $2"],["Messages · (.+?)","消息 · $1"],["(.+?)/(.+?) members","$1/$2 成员"],["(.+?) tasks","$1 个任务"],["Joined \"(.+?)\" as leader","已加入「$1」并成为组长"],["Joined \"(.+?)\"","已加入「$1」"],["Left \"(.+?)\"","已退出「$1」"],["Created \"(.+?)\"; this conversation is now the leader","已创建「$1」，当前对话成为组长"],["(.+?) · click to rename","$1 · 点击重命名"],["A leader already exists \\((.+?)\\); taking over makes them a member\\.","已有组长 $1，接管后对方会转为成员。"],["(.+?) groups","$1 个分组"],["(.+?) leader seats","$1 组长"],["(.+?)(.+?)","$1$2"],["(.+?) edges","$1 条连线"],["Selected \"(.+?)\"; click another card to finish the link \\(Esc to cancel\\)","已选中「$1」，再点击另一张卡片完成连线（Esc 取消）"],["assignee (.+?)","负责人 $1"],["Delete \"(.+?)\"\\? Its edges will be deleted too\\.","确定要删除「$1」吗？与它相连的连线也会一并删除。"]]
+
+    let maLocale = "en"
+
+    const maLocaleListeners = new Set()
+
+    function maSetLocale(next) {
+      if (next === maLocale) return
+      maLocale = next
+      for (const listener of [...maLocaleListeners]) {
+        try { listener() } catch (error) { console.error("[dsh-multi-agent] locale listener failed:", error) }
+      }
+    }
+
+    function maTranslate(value) {
+      if (maLocale !== "zh" || typeof value !== "string") return value
+      const text = value.trim()
+      if (!text) return value
+      let translated = Object.prototype.hasOwnProperty.call(MA_ZH_EXACT, text) ? MA_ZH_EXACT[text] : undefined
+      if (translated === undefined) {
+        for (const [source, target] of MA_ZH_PATTERNS) {
+          const match = text.match(new RegExp("^" + source + "$"))
+          if (!match) continue
+          translated = target.replace(/\$(\d+)/g, (_, index) => match[Number(index)] ?? "")
+          break
+        }
+      }
+      if (translated === undefined || translated === text) return value
+      return value.replace(text, translated)
+    }
+
+    function maOwnedElement(element) {
+      if (typeof document === "undefined") return false
+      for (let node = element; node && node !== document.body; node = node.parentElement) {
+        const list = node.classList
+        if (!list) continue
+        for (const name of list) if (name.startsWith("ma-")) return true
+      }
+      return false
+    }
+
+    const maTextOrigin = new WeakMap()
+    const maAttributeOrigin = new WeakMap()
+
+    function maTranslateTree(root) {
+      if (typeof document === "undefined" || !root) return
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      const nodes = []
+      while (walker.nextNode()) nodes.push(walker.currentNode)
+      for (const node of nodes) {
+        const parent = node.parentElement
+        if (!parent || !maOwnedElement(parent)) continue
+        if (parent.closest("input, textarea, script, style, code, pre")) continue
+        const current = node.nodeValue
+        if (current == null) continue
+        const stored = maTextOrigin.get(node)
+        if (maLocale === "zh") {
+          let source = current
+          if (stored !== undefined) {
+            if (stored !== current && maTranslate(stored) === current) continue
+            source = current
+          }
+          const translated = maTranslate(source)
+          if (translated !== source) {
+            maTextOrigin.set(node, source)
+            node.nodeValue = translated
+          } else if (stored !== undefined) {
+            maTextOrigin.delete(node)
+          }
+        } else if (stored !== undefined) {
+          node.nodeValue = stored
+          maTextOrigin.delete(node)
+        }
+      }
+      const attributes = ["placeholder", "title", "aria-label"]
+      for (const element of root.querySelectorAll("[placeholder], [title], [aria-label]")) {
+        if (!maOwnedElement(element)) continue
+        let store = maAttributeOrigin.get(element)
+        for (const attribute of attributes) {
+          const current = element.getAttribute(attribute)
+          if (current == null || current === "") continue
+          if (maLocale === "zh") {
+            const translated = maTranslate(current)
+            if (translated === current) continue
+            if (!store) { store = {}; maAttributeOrigin.set(element, store) }
+            if (store[attribute] === undefined) store[attribute] = current
+            element.setAttribute(attribute, translated)
+          } else if (store && store[attribute] !== undefined) {
+            element.setAttribute(attribute, store[attribute])
+            delete store[attribute]
+          }
+        }
+      }
+    }
+
+    function maInstallLocale(ctx) {
+      if (typeof document === "undefined" || typeof MutationObserver === "undefined") return
+      let locale = null
+      try { locale = ctx.get("locale") } catch (error) { locale = null }
+      if (locale && typeof locale.getSnapshot === "function" && typeof locale.subscribe === "function") {
+        const sync = () => {
+          maSetLocale(locale.getSnapshot().active)
+          maTranslateTree(document.body)
+        }
+        sync()
+        ctx.effect(() => locale.subscribe(sync), "dsh-multi-agent: locale sync")
+      }
+      let scheduled = false
+      const run = () => {
+        if (maLocale !== 'zh') return
+        if (scheduled) return
+        scheduled = true
+        queueMicrotask(() => {
+          scheduled = false
+          maTranslateTree(document.body)
+        })
+      }
+      const observer = new MutationObserver(run)
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["placeholder", "title", "aria-label"],
+      })
+      ctx.effect(() => () => observer.disconnect(), "dsh-multi-agent: locale observer")
+      ctx.effect(() => {
+        maLocaleListeners.add(run)
+        return () => { maLocaleListeners.delete(run) }
+      }, "dsh-multi-agent: locale render")
+      maTranslateTree(document.body)
+    }
+
+    const inject = ['slots', 'sessions', 'locale']
 
     function apply(ctx) {
       installStyles()
+      maInstallLocale(ctx)
       const store = createStore()
       const sessions = ctx.sessions
       const renameSession = async (sessionId, title) => {
@@ -5955,7 +6091,7 @@ window.__ModuleLoader__.load({
           (reference) => reference.binding.session.rename(title),
         )
         if (!result || result.ok !== true) {
-          throw new Error((result && result.error && result.error.message) || '重命名对话失败')
+          throw new Error((result && result.error && result.error.message) || 'Failed to rename the conversation')
         }
         return result.value
       }
@@ -5967,7 +6103,7 @@ window.__ModuleLoader__.load({
             reference.binding.session.prompt([{ type: 'text', text }], 'steer'),
         )
         if (!result || result.ok !== true) {
-          throw new Error((result && result.error && result.error.message) || '插话投递失败')
+          throw new Error((result && result.error && result.error.message) || 'Interjection delivery failed')
         }
         return result.value
       }
@@ -5984,7 +6120,7 @@ window.__ModuleLoader__.load({
             GroupPage,
           )
         } catch (error) {
-          console.error('[dsh-multi-agent] 无法注册分组主页：', error)
+          console.error('[dsh-multi-agent] Failed to register the groups page:', error)
           return () => {}
         }
         return typeof dispose === 'function' ? dispose : () => {}
@@ -5998,12 +6134,14 @@ window.__ModuleLoader__.load({
               name: 'sidebar.panellist',
               id: PANEL_ID,
               order: 16,
-              label: () => 'Agent 分组',
+              label: () => {
+                try { return ctx.get('locale').getSnapshot().active === 'zh' ? 'Agent 分组' : 'Agent Groups' } catch (error) { return 'Agent Groups' }
+              },
             },
             GroupGlyph,
           )
         } catch (error) {
-          console.error('[dsh-multi-agent] 无法注册侧栏入口：', error)
+          console.error('[dsh-multi-agent] Failed to register the sidebar entry:', error)
           return () => {}
         }
         return typeof dispose === 'function' ? dispose : () => {}
@@ -6022,7 +6160,7 @@ window.__ModuleLoader__.load({
             HeaderAction,
           )
         } catch (error) {
-          console.error('[dsh-multi-agent] 无法注册对话操作：', error)
+          console.error('[dsh-multi-agent] Failed to register the conversation action:', error)
           return () => {}
         }
         return typeof dispose === 'function' ? dispose : () => {}

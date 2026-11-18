@@ -1,78 +1,79 @@
 # dsh-multi-agent
 
-为 DeepSeek Harness 提供 Agent 分组协作能力的外部插件。
+An external plugin that gives DeepSeek Harness agent groups and team collaboration.
 
-当前版本包含 **Agent 分组**、**组内消息**、**分组任务空间**、**执行列表（文件占用）**，以及一套按权限动态开放给 Agent 的工具接口。
+This version ships **Agent Groups**, **group messages**, **per-group task spaces**, **an execution list (file locks)**, **token usage reports**, and a permission-aware tool surface for agents.
 
-## 功能
+## Features
 
-- 左侧边栏新增 **Agent 分组** 页面：进入后先看到分组卡片列表，点击某个分组才进入它的详情页。
-- 创建、编辑、删除分组；支持名称、说明、标识色和搜索。
-- 分组详情按标签组织：**管理组**、**组内任务**、**消息列表**、**用量统计**、**执行列表**；任务不再单独占用侧栏入口。
-- 管理组标签内查看成员列表、每个成员的角色（组长 / 成员）、加入时间。
-- 创建分组时必须指定首任组长，每个分组始终保留一位组长。
-- **管理组**标签：可批量添加成员、移出成员、设为组长或转为成员，并配置新会话继承与最大会话数。
-- 添加成员会扫描当前工作区的会话，支持搜索和多选；多个工作区时可切换范围。
-- 在分组内直接调整成员角色：设为组长、移出分组；当前组长只能通过接管转移，不能直接降为成员。
-- 对话右上角的分组入口展示当前对话加入的所有分组、在每个分组中的角色，以及组内成员，并可直接 **创建分组**。
-- 在当前对话中直接重命名对话；分组页和成员列表会同步显示新名称。
-- 一个对话可以同时加入多个分组，且在各分组中的角色互相独立。例如：在产品组是成员，同时在质量组是组长。
-- 加入分组时可选择成员或组长；接管已有组长前需要确认，原组长会自动降为成员。
-- 组内消息支持 **广播**（全员）和 **私聊**（单成员）；两种消息都通过 `steer` 插话投递到目标对话。
-- 消息控制台默认以 **用户** 身份发送，不再借内部 Agent 身份广播；组长和成员身份可切换到“查看身份”中检查队列。
-- 收到消息的成员必须先回复，才能继续发送新消息；回复 Agent 消息会插话送回原发送者，回复用户消息则记录到用户的消息队列。
-- 消息队列记录发送者、接收范围、内容、发送时间、每位成员的投递状态和回复内容。
-- 组长可查看本组全部广播与私聊队列；普通成员只能查看与自己相关的消息。
-- 用户发送的消息没有会话 ID，成员回复会立即记录在用户控制台的消息队列中，并由用户查看。
-- 消息不能跨组发送，私聊对象必须是同一分组的成员。
-- 分组和消息数据保存在当前 DSH profile 下，重启后仍然保留。
-- **执行列表**标签：成员读取文件自动登记「只读」，写入/编辑自动登记「读写」；只读可多人同时，读写必须独占，冲突时 fs 工具调用会被直接拒绝；显示谁在什么时间使用了/移动/复制了哪个文件及目标目录，修改/删除记录仅创建者或组长可操作。
-- **用量统计**标签：展示组内总量与每位成员的累计 token 用量，按用量从高到低排序并显示四舍五入到 1% 的占比，可手动刷新。
+- The whole panel follows the DSH language setting: switch DSH to Chinese and every label, dialog and tab switches to Chinese; agent-facing tool descriptions, errors and docs stay English.
+- A new **Agent Groups** page in the left sidebar: it starts with a grid of group cards; click a card to open that group's detail page.
+- Create, edit and delete groups; each group has a name, description, color and search.
+- The group detail page is organized into tabs: **Manage**, **Group tasks**, **Messages**, **Usage**, **Activity**. Tasks no longer have a separate sidebar entry.
+- The Manage tab lists members, their roles (leader / member) and join time.
+- A group must be created with a first leader; every group always keeps exactly one leader.
+- The **Manage** tab can add members in bulk, remove members, promote to leader or demote to member, and configure new-session inheritance and the maximum session count.
+- Adding members scans sessions in the current workspace, with search and multi-select; switch workspace scope when several workspaces exist.
+- Roles can be changed inside a group: promote to leader, remove from group. The current leader can only hand over through takeover, never be demoted directly.
+- The group entry in the conversation header shows every group this conversation belongs to, its role in each, the group's members, and can create a group on the spot.
+- Rename the current conversation from the group entry; group pages and member lists update immediately.
+- One conversation can join several groups with independent roles. Example: member of the product group and leader of the quality group at the same time.
+- When joining a group you can pick member or leader; taking over an existing leader requires confirmation, and the previous leader becomes a member.
+- Group messages support **broadcast** (everyone) and **private** (one member); both are delivered to the target conversation as `steer` interjections.
+- The message console sends as the **user** by default, instead of borrowing an internal agent identity; leader and member viewpoints are available under "view as" for inspecting the queue.
+- A member who received a message must reply before sending new messages; replies to agent messages are interjected back to the sender, replies to the user are recorded in the user's console queue.
+- The message queue records sender, audience, content, send time, per-member delivery state and replies.
+- Leaders can read all broadcasts and private messages in their group; ordinary members only see messages they sent or received.
+- User messages have no session ID; member replies are recorded in the user console queue for the user to read.
+- Messages cannot cross groups, and private recipients must be members of the same group.
+- Group and message data live under the current DSH profile and survive restarts.
+- **Activity** tab: reading a file auto-registers a `read` lock, writing/editing auto-registers a `write` lock. Many `read` locks are allowed, `write` is exclusive, and conflicting fs tool calls are denied. The list shows who used, moved or copied which file and to which destination; only the creator or the leader may edit or delete an entry.
+- **Usage** tab: shows the group total and each member's accumulated token usage, sorted from highest to lowest with a share rounded to 1%; can be refreshed manually.
 
-## AI 引导技能
+## AI onboarding skill
 
-插件会向 DSH 注册一个运行时技能 **multi-agent-guide**，用于让任何安装本插件的 Agent 自动学会如何使用分组、成员会话与任务板：
+The plugin registers a runtime skill **multi-agent-guide** so any agent that installs this plugin learns how to use groups, member sessions and the task board:
 
-- 技能内容：`lib/guide.md`，涵盖组长/成员权限、6 个合并工具（用 op 区分操作）的参数与约束、推荐协作流程、常见错误码、管理页配置与 HTTP API。
-- 自动引用：插件同时注册一条系统提示段落，Agent 在调用任何 multi_agent_* 工具前会被要求先加载该技能；即使没有主动加载，技能目录里也会显示它的用途与触发条件。
-- 手动触发：在对话中让 Agent「加载 multi-agent-guide 技能」即可；安装后无需额外配置。
-- 更新方式：直接编辑 `lib/guide.md` 并重启 DSH，即可让所有 Agent 看到新版本。
+- Skill content: `lib/guide.md`, covering leader/member permissions, the six merged tools (operations selected with `op`), recommended workflows, common error codes, settings and the HTTP API.
+- Automatic reference: the plugin also registers a system prompt section that tells agents to load the skill before calling any `multi_agent_*` tool; even without loading it, the skill catalog shows its purpose and trigger.
+- Manual trigger: ask the agent to "load the multi-agent-guide skill"; no extra setup is needed after installation.
+- Updating: edit `lib/guide.md` and restart DSH so every agent sees the new version.
 
-## 角色与权限
+## Roles and permissions
 
-| 规则 | 说明 |
+| Rule | Details |
 | --- | --- |
-| 角色独立 | 同一对话在不同分组中可以拥有不同角色 |
-| 唯一组长 | 每个分组必须且只能有一位组长，不能出现组长空缺 |
-| 成员不限 | 一个分组可以有多位成员 |
-| 接管组长 | 接管确认后，原组长自动降为成员；当前组长不能直接降为成员 |
-| 查看成员 | 所有对话都可以查看分组和成员列表 |
-| 管理成员 | 在「Agent 分组」页面或分组弹窗中调整角色、移出成员 |
-| 消息发送人 | 控制台默认以“用户”身份发送广播/私聊，也可切换查看组长或成员视角 |
-| 消息队列 | 组长可读取本组全部广播与私聊消息，成员只能读取与自己相关的消息 |
-| 回复约束 | 收到消息的成员必须先回复，未回复时禁止继续发送新消息 |
-| 回复用户 | 用户消息没有会话 ID，成员回复会展示在用户控制台的消息队列中 |
+| Independent roles | One conversation can hold different roles in different groups |
+| Unique leader | Every group has exactly one leader, never zero |
+| Unlimited members | A group can have many members |
+| Leader takeover | After confirming takeover, the previous leader becomes a member; the current leader cannot be demoted directly |
+| View members | Every conversation can view groups and member lists |
+| Manage members | Change roles or remove members from the Agent Groups page or the group dialog |
+| Message sender | The console sends broadcasts/private messages as the user by default; switch to the leader or member viewpoint to inspect |
+| Message queue | Leaders read all broadcasts and private messages; members only read messages related to themselves |
+| Reply required | Members who received a message must reply before sending new messages |
+| Reply to user | User messages have no session ID; member replies appear in the user console queue |
 
-## 使用
+## Usage
 
-1. 打开左侧边栏 **Agent 分组**，点击 **新建分组**。
-2. 填写名称、说明和标识色，创建后可在左侧分组列表中切换查看。
-3. 打开任意对话，点击右上角的分组入口。
-4. 选择分组并加入为 **成员** 或 **组长**。已有组长时可确认接管；也可以直接创建新分组。
-5. 再次打开入口，可以查看当前对话的全部分组、角色与成员，也可以退出某个分组。
-6. 点击分组的 **管理组**，可扫描当前工作区会话并添加成员，或调整、移出已有成员。
-7. 点击分组详情或对话分组弹窗中的 **消息**，选择广播或私聊，发送后会以插话进入目标对话。
-8. 收到消息的成员在消息队列中点击 **回复**；完成回复前不能继续发送新消息。
-9. 点击对话标题旁的铅笔图标可给当前对话改名。
+1. Open **Agent Groups** in the left sidebar and click **New group**.
+2. Fill in name, description and color; the new group appears as a card in the list.
+3. Open any conversation and click the group entry in the header.
+4. Pick a group and join as **member** or **leader**. If a leader exists you can confirm takeover; you can also create a new group here.
+5. Reopen the entry to see all groups of the current conversation, your roles and members; you can also leave a group.
+6. Open a group's **Manage** tab to scan workspace sessions and add members, or change and remove existing members.
+7. Use **Messages** (in the group detail or in the conversation entry) to send a broadcast or private message; it is delivered as an interjection.
+8. A member who received a message replies from the queue; sending new messages is blocked until the reply is done.
+9. Use the pencil icon next to the conversation title to rename the current conversation.
 
-## 安装
+## Installation
 
-通过 DSH 插件管理器安装本目录即可。当前桌面 profile 已使用本地 link 安装：
+Install this directory through the DSH plugin manager. A local link install in a profile looks like this:
 
 ```json
 {
   "dependencies": {
-    "dsh-multi-agent": "link:C:/Users/PC/Documents/deepseek-harness/default-workspace/dsh-multi-agent"
+    "dsh-multi-agent": "link:/path/to/dsh-multi-agent"
   },
   "dsh": {
     "profile": {
@@ -82,7 +83,7 @@
 }
 ```
 
-插件包内的 `cordis.patch.yml` 会插入 host 插件：
+The bundled `cordis.patch.yml` inserts the host plugin:
 
 ```yaml
 - insert:
@@ -90,54 +91,55 @@
       name: dsh-multi-agent
 ```
 
-通过 DSH 插件管理器安装或切换 bundle 时 HMR 会即时生效；手动修改 profile 后如未加载，重启 DSH 桌面端即可。
+HMR applies bundle installs immediately; if a manually edited profile was not picked up, restart the DSH desktop app.
 
-## Agent 工具
+## Agent tools
 
-插件把分组和消息能力注册为 Agent 工具。工具是否出现在某个 Agent 的可用工具列表中，由它当前在组内的角色和未回复消息实时决定；即使绕过可见性，执行时也会再次校验权限。
+The plugin exposes group and message capabilities as agent tools. Whether a tool appears in an agent's tool list is decided live by its current group role and pending replies; permissions are checked again at execution time even if visibility is bypassed.
 
-| 工具 | 谁能使用 | 作用 |
+| Tool | Who can use it | Purpose |
 | --- | --- | --- |
-| `multi_agent_groups` | 所有 Agent | `op`：`-l` 列表（默认）/ `-m` 成员 / `-c` 候选会话。查看自己的会话 ID、分组、角色、组长和成员 |
-| `multi_agent_group` | 所有 Agent（管理操作仅组长） | `op`：`-n` 新建 / `-j` 加入 / `-x` 退出 / `-u` 修改 / `-d` 删除 / `-a` 加成员 / `-r` 移成员 / `-s` 调角色 / `-t` 候选会话。分组生命周期统一入口 |
-| `multi_agent_create_member` | 仅组长 | 在组长当前工作区创建全新成员会话；必须绑定一个未分配的任务模块（`taskId`）；默认继承模型/推理等级，组长完全权限时同步完全权限，无历史上下文；受最大会话数限制 |
-| `multi_agent_task` | 组内成员（写操作仅组长；改状态限负责人/组长） | `op`：`-l` 列表 / `-c` 创建 / `-u` 修改与派活 / `-d` 删除 / `-s` 改状态 / `-x` 连线 / `-r` 删连线。任务空间（含负责人归属与 DAG 连线） |
-| `multi_agent_activity` | 组内成员（改/删限创建者或组长） | `op`：`-l` 查看（`query` 支持 `-a`、`-s 文件名`、`-m 组员ID`、末尾数字取最近 N 条）/ `-c` 登记 / `-u` 修改 / `-d` 删除。执行列表与文件占用 |
-| `multi_agent_message` | 组内成员 | `op`：`-l` 查看队列 / `-s` 发送（广播或私聊）/ `-r` 回复。消息以 `steer` 插话送达 |
+| `multi_agent_groups` | All agents | `op`: `-l` list (default) / `-m` members / `-c` candidate sessions. Shows your session ID, groups, roles, leader and members |
+| `multi_agent_group` | All agents (management operations require leader) | `op`: `-n` create / `-j` join / `-x` leave / `-u` update / `-d` delete / `-a` add member / `-r` remove member / `-s` set role / `-t` candidates. Single entry point for the group lifecycle |
+| `multi_agent_create_member` | Leader only | Creates a fresh member session in the leader's current workspace; must bind one unassigned task (`taskId`); inherits model/reasoning by default, mirrors full access when the leader has it, no history; limited by the max session count |
+| `multi_agent_task` | Group members (writes require leader; status requires assignee or leader) | `op`: `-l` list / `-c` create / `-u` update and assign / `-d` delete / `-s` set status / `-x` connect / `-r` delete edge. Task space with assignees and a DAG of edges |
+| `multi_agent_activity` | Group members (update/delete require creator or leader) | `op`: `-l` list (`query` supports `-a`, `-s name`, `-m memberId`, trailing number for recent N) / `-c` register / `-u` update / `-d` delete. Execution list and file locks |
+| `multi_agent_message` | Group members | `op`: `-l` queue / `-s` send (broadcast or private) / `-r` reply. Delivered as `steer` interjections |
 
-**最快用法**
+**Quick recipes**
 
-- 发广播：`multi_agent_message({ "op": "-s", "content": "..." })`。只加入一个分组时不需要 `groupId`。
-- 发私聊：先 `multi_agent_groups({ "op": "-m" })` 拿完整会话 ID，再 `multi_agent_message({ "op": "-s", "mode": "private", "recipientSessionId": "session-...", "content": "..." })`。
-- 回复：`multi_agent_message({ "op": "-r", "content": "..." })`。只有一条待回复消息时不需要 `messageId`。
-- 自己的完整会话 ID：`multi_agent_groups` 的第一行。
-- 任务与状态：`multi_agent_task({ "op": "-l" })` 看列表；组长用 `op="-c"` 建卡、`op="-u"` 派活、`op="-x"` 连线；负责人用 `op="-s"` 改状态。
-- 文件占用：`multi_agent_activity({ "op": "-l" })` 查看占用中的文件，`op="-c"` 登记只读/读写占用（只读共享、读写独占）。
-- 按组员查历史：`multi_agent_activity({ "op": "-l", "query": "-m session-xxx 5" })` 返回该组员最近 5 条全部记录。
-“待回复”工具只在下一条消息尚未回复时出现；完成回复后自动隐藏。广播和私聊都不能跨组，私聊对象必须是同组成员。
+- Broadcast: `multi_agent_message({ "op": "-s", "content": "..." })`. Omit `groupId` when you belong to exactly one group.
+- Private: first get the full session ID with `multi_agent_groups({ "op": "-m" })`, then `multi_agent_message({ "op": "-s", "mode": "private", "recipientSessionId": "session-...", "content": "..." })`.
+- Reply: `multi_agent_message({ "op": "-r", "content": "..." })`. Omit `messageId` when exactly one message awaits a reply.
+- Your full session ID: the first line of `multi_agent_groups`.
+- Tasks and status: `multi_agent_task({ "op": "-l" })` to list; leaders use `op="-c"` to create, `op="-u"` to assign, `op="-x"` to connect; assignees use `op="-s"` to update status.
+- File locks: `multi_agent_activity({ "op": "-l" })` lists active locks; `op="-c"` registers a read/write lock (read shared, write exclusive).
+- Member history: `multi_agent_activity({ "op": "-l", "query": "-m session-xxx 5" })` returns that member's five most recent records.
+
+Broadcast and private messages never cross groups, and private recipients must be members of the same group.
 
 ## HTTP API
 
-插件启动后提供同源 JSON API：
+The plugin serves a same-origin JSON API:
 
-- `GET /multi-agent/api/state` — 读取分组与成员关系
-- `POST /multi-agent/api/action` — 执行变更，要求 `x-dsh-multi-agent: 1` 请求头
-- `GET /multi-agent/api/messages?groupId=&sessionId=` — 读取指定身份可见的消息队列
+- `GET /multi-agent/api/state` — read groups and memberships
+- `POST /multi-agent/api/action` — apply changes, requires the `x-dsh-multi-agent: 1` header
+- `GET /multi-agent/api/messages?groupId=&sessionId=` — read the queue visible to a given identity
 
-支持的动作：`createGroup`、`updateGroup`、`deleteGroup`、`assign`、`leave`、`sendMessage`、`replyMessage`、`markDelivered`。
+Supported actions: `createGroup`, `updateGroup`, `deleteGroup`, `assign`, `leave`, `sendMessage`, `replyMessage`, `markDelivered`.
 
-状态文件：`<profile>/.dsh-multi-agent/state.json`，当前数据结构版本为 2，并兼容第一版的单分组数据迁移。组内消息以附加的 `messages` 数组保存，不出现在 `/state` 的公开响应中。
+State file: `<profile>/.dsh-multi-agent/state.json`, schema version 2, with migration for the first single-group layout. Group messages are kept in an internal `messages` array that is not exposed by `/state`.
 
-## 开发
+## Development
 
-无构建步骤。浏览器端为单文件 lazy-CJS bundle，只依赖宿主提供的 React / ReactDOM。
+No build step. The browser side is a single-file lazy-CJS bundle that only depends on the host-provided React / ReactDOM.
 
 ```powershell
-# host API 单元测试
+# host API unit tests
 node test-multi-agent-host.mjs
 
-# client SSR / 渲染测试（需要 react、react-dom）
+# client SSR / rendering tests (requires react, react-dom)
 node test-multi-agent-client.mjs
 ```
 
-测试脚本位于工作区根目录，不随插件包分发。
+Test scripts live in the workspace root and are not shipped with the plugin package.
