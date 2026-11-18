@@ -928,14 +928,25 @@ window.__ModuleLoader__.load({
       const members = groupMembers(state, group.id)
       const leaderId = leaderOf(state, group.id)
       const [showAllActivities, setShowAllActivities] = useState(false)
+      const [activityQuery, setActivityQuery] = useState('')
       const groupActivities = Array.isArray(state.activities)
         ? state.activities.filter((activity) => activity.groupId === group.id)
         : []
       const usingActivities = groupActivities.filter((activity) => activity.state === 'using')
-      const visibleActivities = (showAllActivities ? groupActivities : usingActivities)
+      const activityTokens = activityQuery.trim().split(/\s+/).filter(Boolean)
+      let activityMember = ''
+      let activityLimit = 0
+      for (const token of activityTokens) {
+        if (/^\d+$/.test(token)) activityLimit = Math.max(1, Math.min(200, Number(token)))
+        else activityMember = token
+      }
+      const matchedActivities = activityMember
+        ? groupActivities.filter((activity) => activity.sessionId === activityMember || activity.sessionId.startsWith(activityMember))
+        : (showAllActivities ? groupActivities : usingActivities)
+      const visibleActivities = matchedActivities
         .slice()
         .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
-        .slice(0, 30)
+        .slice(0, activityLimit > 0 ? activityLimit : 30)
       return h(
         'div',
         { className: 'ma-detail', style: { '--ma-c': group.color } },
@@ -1158,7 +1169,9 @@ window.__ModuleLoader__.load({
               h(
                 'span',
                 { className: 'ma-count-pill' },
-                showAllActivities ? `${groupActivities.length} 条记录` : `${usingActivities.length} 使用中`,
+                activityMember
+                  ? `${matchedActivities.length} 条记录`
+                  : (showAllActivities ? `${groupActivities.length} 条记录` : `${usingActivities.length} 使用中`),
               ),
             ),
             h(
@@ -1171,13 +1184,23 @@ window.__ModuleLoader__.load({
               showAllActivities ? '只看使用中' : '显示全部',
             ),
           ),
+          h('input', {
+            type: 'text',
+            className: 'ma-activity-search',
+            value: activityQuery,
+            placeholder: '输入组员 ID 搜索全部记录，可加数字取最近条数',
+            'aria-label': '按组员 ID 搜索执行记录',
+            onChange: (event) => setActivityQuery(event.target.value),
+          }),
           visibleActivities.length === 0
             ? h(
                 'p',
                 { className: 'ma-activity-empty' },
-                showAllActivities
-                  ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
-                  : '当前没有成员正在使用文件。',
+                activityMember
+                  ? '这个组员没有匹配的执行记录。'
+                  : (showAllActivities
+                    ? '还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。'
+                    : '当前没有成员正在使用文件。'),
               )
             : h(
                 'ul',
@@ -5710,6 +5733,9 @@ window.__ModuleLoader__.load({
 }
 .ma-activity { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ma-border); }
 .ma-activity-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ma-activity-search { box-sizing: border-box; width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--ma-border); border-radius: 8px; background: var(--ma-surface); color: var(--ma-text); font: inherit; font-size: 12px; outline: none; }
+.ma-activity-search:focus { border-color: var(--ma-accent); }
+.ma-activity-search::placeholder { color: var(--ma-text-3); }
 .ma-activity-title { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ma-text-2); }
 .ma-activity-title strong { font-size: 12px; color: var(--ma-text); }
 .ma-activity-empty { margin: 0; font-size: 10.5px; line-height: 1.6; color: var(--ma-text-3); }
