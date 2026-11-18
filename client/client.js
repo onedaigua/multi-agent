@@ -27,6 +27,8 @@ const ACTIVITY_READ_TTL_MS = 3 * 60 * 1000
 const ACTIVITY_WRITE_TTL_MS = 15 * 60 * 1000
 
 function isFreshActivity(activity) {
+  const releasedAt = Date.parse((activity && activity.expiresAt) || '')
+  if (Number.isFinite(releasedAt) && releasedAt <= Date.now()) return false
   const at = Date.parse(activity && activity.updatedAt)
   if (!Number.isFinite(at)) return false
   const ttl = activity && activity.state === 'write' ? ACTIVITY_WRITE_TTL_MS : ACTIVITY_READ_TTL_MS
