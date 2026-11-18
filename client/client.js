@@ -958,10 +958,12 @@ function isFreshActivity(activity) {
         .slice(0, limit > 0 ? limit : 30)
       const diffLine = (sign, entry, index) => {
         const text = typeof entry === 'string' ? entry : entry && typeof entry.text === 'string' ? entry.text : ''
-        const no = typeof entry === 'object' && entry && entry.line > 0 ? String(entry.line) : '·'
+        // Records written before v0.8.10 only stored the text; do not invent a
+        // line number for them, leave the gutter empty instead of a marker.
+        const no = typeof entry === 'object' && entry && entry.line > 0 ? String(entry.line) : ''
         return h(
           'div',
-          { key: `${sign}-${index}-${no}`, className: cx('ma-diff-line', sign === '-' ? 'is-removed' : 'is-added') },
+          { key: `${sign}-${index}`, className: cx('ma-diff-line', sign === '-' ? 'is-removed' : 'is-added') },
           h('span', { className: 'ma-diff-no' }, no),
           h('span', { className: 'ma-diff-sign' }, sign),
           h('span', { className: 'ma-diff-text' }, text),
