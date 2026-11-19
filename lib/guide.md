@@ -54,7 +54,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `bash` and other shell commands are **not** covered by the guard.
 
 ### multi_agent_member (member lifecycle)
-- `-h`: hand over a member. Leader only. Needs `sessionId`. Writes the handover mark and time on the member's claimed tasks (and the membership) so the member is allowed to archive. The Manage tab also offers `交接`/`Hand over` per member row.
+- `-h`: hand over a member. Leader only. Needs `sessionId`. Marks the member's claimed tasks and the membership as handed over, then **wakes the member** with a notification: write the module brief for every remaining card, then archive itself with `-z`. The Manage tab also offers `交接`/`Hand over` per row (`再次通知`/`Notify again` re-sends it).
 - `-z`: archive yourself. Members only (the leader cannot archive itself). The leader can archive a member from the Manage tab (`归档`/`Archive`), which runs the same checks: every claimed task must be done with a module brief or already handed over. Every task you claimed must be `done` with a `completionNote` (module brief), or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH when the runtime allows and can only be restored by the leader.
 - `-g`: restore a member. Leader only. Needs `sessionId` and an unfinished (`todo`/`doing`) `taskId` not assigned to somebody else; the task is assigned to the member, then the session is unarchived. Restoring without a task is refused.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
@@ -99,7 +99,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
-- Manage lists active members and, below them, **archived members** (with archive date and a `Handed over` mark). A `Restore` button turns one back into a working member: pick an unfinished task, it is assigned to them and their conversation is reopened. The leader can also do it with `multi_agent_member op="-g"`. Each active member row carries `设为组长`/`Set as leader`, `交接`/`Hand over` and `归档`/`Archive` buttons, so the leader never needs an agent session to move a member through the lifecycle.
+- Manage lists active members and, below them, **archived members** (with archive date and a `Handed over` mark). A `Restore` button turns one back into a working member: pick an unfinished task, it is assigned to them and their conversation is reopened. The leader can also do it with `multi_agent_member op="-g"`. Each active member row carries `设为组长`/`Set as leader`, `交接`/`Hand over` and `归档`/`Archive` buttons, so the leader never needs an agent session to move a member through the lifecycle. `交接` notifies the member and leaves the archiving to them (`-z`) after they write the module briefs; `归档` is the leader-side shortcut and runs the same checks.
 - A done task shows its module brief (label `Module brief`) instead of a one-line completion note.
 - The page adapts to phone widths (v0.8.11): cards stack in one column, the tab bar wraps instead of overflowing, the detail header and the message header switch to two rows, and the activity diff keeps its line-number gutter. Width comes from the host frame, so it follows the pane, not a media query.
 - Max sessions per group (2–32, default 8).
