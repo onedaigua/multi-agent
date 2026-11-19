@@ -2456,6 +2456,20 @@ function isFreshActivity(activity) {
       const activeRecipient = others.some((membership) => membership.sessionId === recipient)
         ? recipient
         : others[0]?.sessionId || ''
+      const parkedRecipient =
+        others.find((membership) => membership.sessionId === activeRecipient && membership.archivedAt) || null
+      const reopenOptions = parkedRecipient
+        ? state.tasks.filter(
+            (task) =>
+              task.groupId === group.id
+              && task.assigneeSessionId === activeRecipient
+              && task.status === 'done',
+          )
+        : []
+      const [reopenTaskId, setReopenTaskId] = useState('')
+      const activeReopenTask = reopenOptions.some((task) => task.id === reopenTaskId)
+        ? reopenTaskId
+        : reopenOptions[0]?.id || ''
 
       useEffect(() => {
         let alive = true
@@ -2527,7 +2541,9 @@ function isFreshActivity(activity) {
         !sending &&
         queuedContent(content) &&
         (isUser || pendingMessages.length === 0) &&
-        (mode === 'broadcast' ? others.length > 0 : Boolean(activeRecipient))
+        (mode === 'broadcast'
+          ? others.length > 0
+          : Boolean(activeRecipient) && (!parkedRecipient || Boolean(activeReopenTask)))
 
       function queuedContent(value) {
         return typeof value === 'string' && value.trim().length > 0
@@ -2576,6 +2592,7 @@ function isFreshActivity(activity) {
                 : { senderSessionId: viewerId }),
               mode,
               recipientSessionId: mode === 'private' ? activeRecipient : null,
+              taskId: mode === 'private' && parkedRecipient ? activeReopenTask : null,
               content: content.trim(),
             }),
           })
@@ -2756,6 +2773,9 @@ function isFreshActivity(activity) {
             ),
             mode === 'private'
               ? h(
+                  Fragment,
+                  null,
+                  h(
                   'label',
                   { className: 'ma-msg-recipient' },
                   h('span', null, 'To'),
@@ -2768,10 +2788,36 @@ function isFreshActivity(activity) {
                           h(
                             'option',
                             { key: membership.sessionId, value: membership.sessionId },
-                            `${displayNameOf(byId, membership.sessionId)} · ${roleLabel(membership.role)}`,
+                            `${displayNameOf(byId, membership.sessionId)} · ${roleLabel(membership.role)}${membership.archivedAt ? ' · parked' : ''}`,
                           ),
                         ),
                   ),
+                  ),
+                  parkedRecipient
+                    ? h(
+                        'label',
+                        { className: 'ma-msg-recipient' },
+                        h('span', null, 'Reopen task'),
+                        h(
+                          'select',
+                          {
+                            value: activeReopenTask,
+                            onChange: (event) => setReopenTaskId(event.target.value),
+                            disabled: reopenOptions.length === 0,
+                          },
+                          reopenOptions.length === 0
+                            ? h('option', { value: '' }, 'No done task assigned')
+                            : reopenOptions.map((task) => h('option', { key: task.id, value: task.id }, task.title)),
+                        ),
+                      )
+                    : null,
+                  parkedRecipient
+                    ? h(
+                        'p',
+                        { className: 'ma-field-hint ma-msg-parked-note' },
+                        'Parked member: pick the task that was finished poorly. It goes back to doing, the member comes back and must write a new module brief before it can be parked again.',
+                      )
+                    : null,
                 )
               : h(
                   'p',
@@ -5732,6 +5778,9 @@ function isFreshActivity(activity) {
 }
 .ma-msg-mode button.is-active { color: var(--ma-text); background: var(--ma-soft-strong); }
 .ma-msg-recipient { display: flex; align-items: center; gap: 7px; color: var(--ma-text-2); font-size: 10.5px; }
+.ma-msg-recipient > span:first-child { flex: 0 0 auto; }
+.ma-msg-recipient select { flex: 1 1 auto; min-width: 0; }
+.ma-msg-parked-note { display: block; margin: 2px 0 0; }
 .ma-msg-recipient select {
   flex: 1;
   min-width: 0;
@@ -6252,6 +6301,8 @@ function isFreshActivity(activity) {
       "Brought back": "已恢复",
       "Assign a task to bring them back.": "分配任务即可恢复。",
       "Unarchive": "取消归档",
+      "Reopen task": "重开任务",
+      "No done task assigned": "没有指派给它的已完成任务",
       "Confirm unarchive": "确认取消归档",
       "auto": "自动",
       "manual": "手动",
@@ -6265,6 +6316,8 @@ function isFreshActivity(activity) {
     const MA_ZH_PATTERNS = [["Notified (.+?): finish the module briefs, then archive\\.","已通知 $1：补齐模块说明后自行归档。"],["Archive (.+?)\\? Their conversation stops and the member leaves the active list\\. Tasks still open must be handed over or finished first\\.","归档 $1？该成员的会话将停止并离开活跃列表；未完成的任务需先交接或完成。"],["Still open: (.+?) — hand them over first\\.","仍未完成：$1，请先交接。"],["Restored (.+?) into \"(.+?)\"","已将 $1 召回并绑定任务「$2」"],["Handed over (.+?); they can archive now\\.","已交接 $1，对方现在可以归档。"],["Archived (.+?)","已归档 $1"],["(.+?) · archived (.+?)","$1 · 已归档 $2"],["Restore (.+?) into an unfinished task; the task is assigned to them and the conversation is reopened\\.","将 $1 召回并绑定一个未完成任务：任务会指派给该成员，其会话将重新打开。"],["Conversation (.+?)","对话 $1"],["Group service returned an error \\((.+?)\\)","分组服务返回了错误（$1）"],["Pick color (.+?)","选择颜色 $1"],["(.+?) · (.+?)(.+?)","$1 · $2$3"],["(.+?) members","$1 位成员"],[" · leader (.+?)"," · 组长 $1"],["(.+?) records","$1 条记录"],["(.+?) in use","$1 占用中"],["leader (.+?)","组长 $1"],["Updated (.+?)","更新于 $1"],["Edit (.+?)","编辑 $1"],["Delete (.+?)","删除 $1"],["Add members · (.+?)","添加成员 · $1"],["Selected (.+?)","已选择 $1 位"],["(.+?) available","$1 个可选"],["The current leader is (.+?); setting a new leader makes them a member automatically\\.","当前组长是 $1，设为组长后对方会自动转为成员。"],["There are already (.+?) sessions; the limit cannot be lower","当前已有 $1 个会话，不能小于这个数量"],["Max sessions set to (.+?)","最大会话数已调整为 $1"],["Made (.+?) the leader","已将 $1 设为组长"],["Made (.+?) a member","已将 $1 转为成员"],["Removed (.+?) from the group","已将 $1 移出分组"],["Manage \"(.+?)\"","管理「$1」"],["Added (.+?) members","已添加 $1 位成员"],["Private message to (.+?)","私聊给 $1"],["Broadcast to (.+?) members","广播给 $1 位成员"],["\\[Group message \\| (.+?)\\]","【分组消息｜$1】"],["(.+?) sent you a message:","$1 向你发送了一条消息："],["Message ID: (.+?)","消息编号：$1"],["\\[Group reply \\| (.+?)\\]","【分组回复｜$1】"],["(.+?) replied to your message:","$1 回复了你的消息："],["Original message ID: (.+?)","原消息编号：$1"],["Message interjected to (.+?) members","消息已插话发送给 $1 位成员"],["Delivered to (.+?); (.+?) failed; the failed records stay in the queue","已投递 $1 位，$2 位投递失败；失败记录已保留在队列中"],["Sender: (.+?)","发送人：$1"],["Will be interjected to all (.+?) members as the user","将以「用户」身份插话发送给全部 $1 位成员"],["Will be interjected to the other (.+?) members","将插话发送给另外 $1 位成员"],["You have (.+?) messages awaiting a reply\\. Reply first to send new messages\\.","你有 $1 条消息待回复。先完成回复，才能继续发送新消息。"],["(.+?)/4000 · Ctrl\\+Enter to send","$1/4000 · Ctrl+Enter 发送"],["All (.+?)","全部 $1"],["Awaiting my reply (.+?)","待我回复 $1"],["Sent by me (.+?)","我发出的 $1"],["(.+?) · (.+?)","$1 · $2"],["Messages · (.+?)","消息 · $1"],["(.+?)/(.+?) members","$1/$2 成员"],["(.+?) tasks","$1 个任务"],["Joined \"(.+?)\" as leader","已加入「$1」并成为组长"],["Joined \"(.+?)\"","已加入「$1」"],["Left \"(.+?)\"","已退出「$1」"],["Created \"(.+?)\"; this conversation is now the leader","已创建「$1」，当前对话成为组长"],["(.+?) · click to rename","$1 · 点击重命名"],["A leader already exists \\((.+?)\\); taking over makes them a member\\.","已有组长 $1，接管后对方会转为成员。"],["(.+?) groups","$1 个分组"],["(.+?) leader seats","$1 组长"],["(.+?)(.+?)","$1$2"],["(.+?) edges","$1 条连线"],["Selected \"(.+?)\"; click another card to finish the link \\(Esc to cancel\\)","已选中「$1」，再点击另一张卡片完成连线（Esc 取消）"],["assignee (.+?)","负责人 $1"],["Delete \"(.+?)\"\\? Its edges will be deleted too\\.","确定要删除「$1」吗？与它相连的连线也会一并删除。"]]
     // Specific sentences must run before the catch-all patterns above/inside MA_ZH_PATTERNS.
     MA_ZH_PATTERNS.unshift(
+      ["Parked member: pick the task that was finished poorly\\. It goes back to doing, the member comes back and must write a new module brief before it can be parked again\\.","已归档成员：请选择完成质量不佳的任务。该任务回到进行中，成员随即回归，需重新填写模块说明才能再次归档。"],
+      ["(.+?) · parked","$1 · 已归档"],
       ["Archived (.+?); assign a task to bring them back\\.", "已归档 $1，分配任务即可恢复。"],
       ["Archive (.+?)\\? The member stops receiving messages and leaves the active count; assigning a task brings it back\\.", "归档 $1？该成员将不再接收消息并离开活跃计数；分配任务即可恢复。"],
       ["Archived (.+?)", "已归档 $1"],

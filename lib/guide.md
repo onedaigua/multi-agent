@@ -56,16 +56,17 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 ### Member lifecycle (no tool, no handover)
 - The old lifecycle operations are gone: there is no `multi_agent_member` tool and no handover/self-archive/restore op. A member is **parked** (archived status) while it has no unfinished task, and active while it has one:
   - Marking the last task `done` (with its module brief) parks the member automatically. A task cannot be marked `done` without the brief.
-  - Assigning a task (`-u assigneeSessionId`, or `-c … assigneeSessionId`) revives a parked member and wakes it with a task notification. Assignment is the only notification a parked member receives.
+  - Assigning a task (`-u assigneeSessionId`, or `-c … assigneeSessionId`) revives a parked member and wakes it with a task notification.
+  - A private message also revives a parked member when it names a `taskId` of one of their done tasks: that task goes back to `doing` with its module brief cleared, the member comes back and receives the message. Use this when a delivery was poor and needs rework instead of a new task.
   - Joining a group without an unfinished task parks the session immediately, so a new member waits for an assignment instead of chatting.
   - The leader is never parked automatically; the user can archive the leader by hand from the Manage tab and undo it with the same button (`Unarchive`).
-- Parked members receive no messages: broadcasts skip them, and a DM to one fails with `MEMBER_ARCHIVED`. They do not count toward the session limit (the member counter shows active members only).
+- Parked members receive no broadcasts. A DM to one needs `taskId` (a done task assigned to them); without it the send fails with `TASK_CONTEXT_REQUIRED`, with a task that is not theirs or not done it fails with `TASK_NOT_REOPENABLE`. They do not count toward the session limit (the member counter shows active members only).
 - The Manage tab lists active members and, below them, parked members with `auto`/`manual` and the archive date. There is no Restore button: assign a task and the member comes back. The archived leader row carries `Unarchive`, the only way back for a manual archive.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
 ### multi_agent_message
 - `-l`: list messages (leader sees the whole group; members only their own).
-- `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`).
+- `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`). A DM to a parked member also needs `taskId` of one of their done tasks: the task reopens (`doing`, module brief cleared), the member is woken and returns; it must write a new module brief before it can be parked again.
 - `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the error lists candidates).
 - Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait.
 - A sender with pending replies must reply first; messages cannot cross groups; each delivery can be answered once.
@@ -76,7 +77,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`), work only on assigned tasks, set `-s taskId status=done` when done, reply to messages.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the exact lines a write added/removed; just work normally.
-6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). With no unfinished task left you are parked automatically and stop receiving messages; the next assignment revives you and wakes you with a task notification.
+6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). With no unfinished task left you are parked automatically and stop receiving broadcasts; the next assignment revives you, and a DM that names one of your done tasks reopens it and wakes you too.
 7. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
@@ -99,11 +100,11 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 - `ALREADY_REPLIED` / `NOT_RECIPIENT` (409/403); `NO_PENDING_REPLY` (404): nothing left to answer.
 - `NOT_ASSIGNEE` (403): that task belongs to another member; `SELF_PRIVATE` (400): cannot DM yourself.
 - `INVALID_*` (400); `*_NOT_FOUND` (404); `SESSION_SERVICE` (503): session service unavailable.
-- Member lifecycle: `NOTE_REQUIRED` (done without a module brief) / `TASK_LOCKED` (done record cannot be deleted) / `MEMBER_ARCHIVED` (DM to a parked member) (400/409).
+- Member lifecycle: `NOTE_REQUIRED` (done without a module brief) / `TASK_LOCKED` (done record cannot be deleted) / `TASK_CONTEXT_REQUIRED` (DM to a parked member without `taskId`) / `TASK_NOT_REOPENABLE` (the task is not theirs or not done) (400/404/409).
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
-- Manage lists active members and, below them, **parked members** (archive date plus `auto`/`manual`). Parked members get no messages and are not counted; assign a task to revive one. Active rows carry `设为组长`/`Set as leader` and `移除`/`Remove`; the leader row also has a manual `归档`/`Archive`, and an archived leader shows `取消归档`/`Unarchive`.
+- Manage lists active members and, below them, **parked members** (archive date plus `auto`/`manual`). Parked members get no broadcasts and are not counted; assign a task, or private-message one with one of its done tasks, to revive it. Active rows carry `设为组长`/`Set as leader` and `移除`/`Remove`; the leader row also has a manual `归档`/`Archive`, and an archived leader shows `取消归档`/`Unarchive`.
 
 - A done task shows its module brief (label `Module brief`) instead of a one-line completion note.
 - The page adapts to phone widths (v0.8.11): cards stack in one column, the tab bar wraps instead of overflowing, the detail header and the message header switch to two rows, and the activity diff keeps its line-number gutter. Width comes from the host frame, so it follows the pane, not a media query.
