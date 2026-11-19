@@ -1917,6 +1917,7 @@ function isFreshActivity(activity) {
       const [takeover, setTakeover] = useState(null)
       const [removeTarget, setRemoveTarget] = useState(null)
       const [restoreTarget, setRestoreTarget] = useState(null)
+      const [archiveTarget, setArchiveTarget] = useState(null)
       const [restoreTaskId, setRestoreTaskId] = useState('')
       const [addOpen, setAddOpen] = useState(false)
       const members = groupMembers(state, group.id)
@@ -1985,6 +1986,61 @@ function isFreshActivity(activity) {
           task.groupId === group.id
           && !(task.status === 'done' && task.completionNote)
           && (!task.assigneeSessionId || task.assigneeSessionId === member.sessionId))
+      }
+
+      function pendingTasksFor(member) {
+        if (!member) return []
+        return (state.tasks || []).filter((task) =>
+          task.groupId === group.id
+          && task.assigneeSessionId === member.sessionId
+          && !(task.status === 'done' && task.completionNote)
+          && !task.handedOverAt)
+      }
+
+      async function handoverMember(member) {
+        if (busy || !member) return
+        setBusy(true)
+        setError(null)
+        setNotice(null)
+        try {
+          await store.mutate({ action: 'handoverMember', groupId: group.id, sessionId: member.sessionId })
+          setNotice(`Handed over ${displayNameOf(byId, member.sessionId)}; they can archive now.`)
+        } catch (caught) {
+          setError(caught.message || 'Failed to hand over the member; try again later')
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      function requestArchive(member) {
+        setArchiveTarget(member)
+        setRestoreTarget(null)
+        setRestoreTaskId('')
+        setRemoveTarget(null)
+        setTakeover(null)
+        setError(null)
+        setNotice(null)
+      }
+
+      async function archiveMember() {
+        if (!archiveTarget || busy) return
+        setBusy(true)
+        setError(null)
+        setNotice(null)
+        try {
+          await store.mutate({
+            action: 'archiveMember',
+            byLeader: true,
+            groupId: group.id,
+            sessionId: archiveTarget.sessionId,
+          })
+          setNotice(`Archived ${displayNameOf(byId, archiveTarget.sessionId)}`)
+          setArchiveTarget(null)
+        } catch (caught) {
+          setError(caught.message || 'Failed to archive the member; try again later')
+        } finally {
+          setBusy(false)
+        }
       }
 
       function requestRestore(member) {
@@ -2122,6 +2178,32 @@ function isFreshActivity(activity) {
                               },
                               isLeader ? 'Make member' : 'Set as leader',
                             ),
+                        isLeader
+                          ? null
+                          : membership.handoverAt
+                            ? h('span', { className: 'ma-archived-pill' }, 'Handed over')
+                            : h(
+                                'button',
+                                {
+                                  type: 'button',
+                                  className: 'ma-text-btn',
+                                  disabled: busy,
+                                  onClick: () => handoverMember(membership),
+                                },
+                                'Hand over',
+                              ),
+                        isLeader
+                          ? null
+                          : h(
+                              'button',
+                              {
+                                type: 'button',
+                                className: 'ma-text-btn',
+                                disabled: busy,
+                                onClick: () => requestArchive(membership),
+                              },
+                              'Archive',
+                            ),
                         h(
                           'button',
                           {
@@ -2133,6 +2215,7 @@ function isFreshActivity(activity) {
                               setTakeover(null)
                               setRestoreTarget(null)
                               setRestoreTaskId('')
+                              setArchiveTarget(null)
                               setError(null)
                             },
                           },
@@ -2191,6 +2274,47 @@ function isFreshActivity(activity) {
                     }),
                   ),
                 ),
+            archiveTarget
+              ? h(
+                  'div',
+                  { className: 'ma-manage-confirm is-danger' },
+                  h(
+                    'p',
+                    null,
+                    `Archive ${displayNameOf(byId, archiveTarget.sessionId)}? Their conversation stops and the member leaves the active list. Tasks still open must be handed over or finished first.`,
+                  ),
+                  pendingTasksFor(archiveTarget).length === 0
+                    ? null
+                    : h(
+                        'p',
+                        { className: 'ma-field-hint' },
+                        `Still open: ${pendingTasksFor(archiveTarget).map((task) => task.title).join(', ')} — hand them over first.`,
+                      ),
+                  h(
+                    'div',
+                    { className: 'ma-manage-confirm-actions' },
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'ma-btn ma-btn-ghost ma-btn-sm',
+                        onClick: () => setArchiveTarget(null),
+                      },
+                      'Cancel',
+                    ),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'ma-btn ma-btn-danger ma-btn-sm',
+                        disabled: busy || pendingTasksFor(archiveTarget).length > 0,
+                        onClick: archiveMember,
+                      },
+                      'Confirm archive',
+                    ),
+                  ),
+                )
+              : null,
             restoreTarget
               ? h(
                   'div',
@@ -6193,6 +6317,9 @@ function isFreshActivity(activity) {
 .ma-manage-summary { min-width: 0; }
 .ma-manage-summary-copy strong, .ma-manage-summary-copy span { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
+  .ma-manage-row { flex-wrap: wrap; row-gap: 6px; }
+  .ma-manage-actions { flex: 1 1 100%; justify-content: flex-end; }
+  .ma-manage-actions .ma-text-btn { font-size: 11px; }
   .ma-page { padding: 16px 14px calc(30px + env(safe-area-inset-bottom, 0px)); }
   .ma-tabs { padding: 3px; gap: 2px; }
   .ma-tab { padding: 6px 8px; font-size: 12px; }
@@ -6258,12 +6385,15 @@ function isFreshActivity(activity) {
       "Archived members": "已归档成员",
       "No archived members yet; members appear here after they archive themselves with -z.": "暂无归档成员。成员用 -z 归档后会出现在这里。",
       "Handed over": "已交接",
+      "Hand over": "交接",
+      "Archive": "归档",
+      "Confirm archive": "确认归档",
       "Restore": "召回",
       "Confirm restore": "确认召回",
       "All tasks are done or taken. Create an unfinished task first.": "任务都已完成或被占用，请先创建一个未完成的任务。",
       "Required for done": "完成时必填",
     })
-    const MA_ZH_PATTERNS = [["(.+?) · archived (.+?)","$1 · 已归档 $2"],["Restore (.+?) into an unfinished task; the task is assigned to them and the conversation is reopened\\.","将 $1 召回并绑定一个未完成任务：任务会指派给该成员，其会话将重新打开。"],["Conversation (.+?)","对话 $1"],["Group service returned an error \\((.+?)\\)","分组服务返回了错误（$1）"],["Pick color (.+?)","选择颜色 $1"],["(.+?) · (.+?)(.+?)","$1 · $2$3"],["(.+?) members","$1 位成员"],[" · leader (.+?)"," · 组长 $1"],["(.+?) records","$1 条记录"],["(.+?) in use","$1 占用中"],["leader (.+?)","组长 $1"],["Updated (.+?)","更新于 $1"],["Edit (.+?)","编辑 $1"],["Delete (.+?)","删除 $1"],["Add members · (.+?)","添加成员 · $1"],["Selected (.+?)","已选择 $1 位"],["(.+?) available","$1 个可选"],["The current leader is (.+?); setting a new leader makes them a member automatically\\.","当前组长是 $1，设为组长后对方会自动转为成员。"],["There are already (.+?) sessions; the limit cannot be lower","当前已有 $1 个会话，不能小于这个数量"],["Max sessions set to (.+?)","最大会话数已调整为 $1"],["Made (.+?) the leader","已将 $1 设为组长"],["Made (.+?) a member","已将 $1 转为成员"],["Removed (.+?) from the group","已将 $1 移出分组"],["Manage \"(.+?)\"","管理「$1」"],["Added (.+?) members","已添加 $1 位成员"],["Private message to (.+?)","私聊给 $1"],["Broadcast to (.+?) members","广播给 $1 位成员"],["\\[Group message \\| (.+?)\\]","【分组消息｜$1】"],["(.+?) sent you a message:","$1 向你发送了一条消息："],["Message ID: (.+?)","消息编号：$1"],["\\[Group reply \\| (.+?)\\]","【分组回复｜$1】"],["(.+?) replied to your message:","$1 回复了你的消息："],["Original message ID: (.+?)","原消息编号：$1"],["Message interjected to (.+?) members","消息已插话发送给 $1 位成员"],["Delivered to (.+?); (.+?) failed; the failed records stay in the queue","已投递 $1 位，$2 位投递失败；失败记录已保留在队列中"],["Sender: (.+?)","发送人：$1"],["Will be interjected to all (.+?) members as the user","将以「用户」身份插话发送给全部 $1 位成员"],["Will be interjected to the other (.+?) members","将插话发送给另外 $1 位成员"],["You have (.+?) messages awaiting a reply\\. Reply first to send new messages\\.","你有 $1 条消息待回复。先完成回复，才能继续发送新消息。"],["(.+?)/4000 · Ctrl\\+Enter to send","$1/4000 · Ctrl+Enter 发送"],["All (.+?)","全部 $1"],["Awaiting my reply (.+?)","待我回复 $1"],["Sent by me (.+?)","我发出的 $1"],["(.+?) · (.+?)","$1 · $2"],["Messages · (.+?)","消息 · $1"],["(.+?)/(.+?) members","$1/$2 成员"],["(.+?) tasks","$1 个任务"],["Joined \"(.+?)\" as leader","已加入「$1」并成为组长"],["Joined \"(.+?)\"","已加入「$1」"],["Left \"(.+?)\"","已退出「$1」"],["Created \"(.+?)\"; this conversation is now the leader","已创建「$1」，当前对话成为组长"],["(.+?) · click to rename","$1 · 点击重命名"],["A leader already exists \\((.+?)\\); taking over makes them a member\\.","已有组长 $1，接管后对方会转为成员。"],["(.+?) groups","$1 个分组"],["(.+?) leader seats","$1 组长"],["(.+?)(.+?)","$1$2"],["(.+?) edges","$1 条连线"],["Selected \"(.+?)\"; click another card to finish the link \\(Esc to cancel\\)","已选中「$1」，再点击另一张卡片完成连线（Esc 取消）"],["assignee (.+?)","负责人 $1"],["Delete \"(.+?)\"\\? Its edges will be deleted too\\.","确定要删除「$1」吗？与它相连的连线也会一并删除。"]]
+    const MA_ZH_PATTERNS = [["Archive (.+?)\\? Their conversation stops and the member leaves the active list\\. Tasks still open must be handed over or finished first\\.","归档 $1？该成员的会话将停止并离开活跃列表；未完成的任务需先交接或完成。"],["Still open: (.+?) — hand them over first\\.","仍未完成：$1，请先交接。"],["Restored (.+?) into \"(.+?)\"","已将 $1 召回并绑定任务「$2」"],["Handed over (.+?); they can archive now\\.","已交接 $1，对方现在可以归档。"],["Archived (.+?)","已归档 $1"],["(.+?) · archived (.+?)","$1 · 已归档 $2"],["Restore (.+?) into an unfinished task; the task is assigned to them and the conversation is reopened\\.","将 $1 召回并绑定一个未完成任务：任务会指派给该成员，其会话将重新打开。"],["Conversation (.+?)","对话 $1"],["Group service returned an error \\((.+?)\\)","分组服务返回了错误（$1）"],["Pick color (.+?)","选择颜色 $1"],["(.+?) · (.+?)(.+?)","$1 · $2$3"],["(.+?) members","$1 位成员"],[" · leader (.+?)"," · 组长 $1"],["(.+?) records","$1 条记录"],["(.+?) in use","$1 占用中"],["leader (.+?)","组长 $1"],["Updated (.+?)","更新于 $1"],["Edit (.+?)","编辑 $1"],["Delete (.+?)","删除 $1"],["Add members · (.+?)","添加成员 · $1"],["Selected (.+?)","已选择 $1 位"],["(.+?) available","$1 个可选"],["The current leader is (.+?); setting a new leader makes them a member automatically\\.","当前组长是 $1，设为组长后对方会自动转为成员。"],["There are already (.+?) sessions; the limit cannot be lower","当前已有 $1 个会话，不能小于这个数量"],["Max sessions set to (.+?)","最大会话数已调整为 $1"],["Made (.+?) the leader","已将 $1 设为组长"],["Made (.+?) a member","已将 $1 转为成员"],["Removed (.+?) from the group","已将 $1 移出分组"],["Manage \"(.+?)\"","管理「$1」"],["Added (.+?) members","已添加 $1 位成员"],["Private message to (.+?)","私聊给 $1"],["Broadcast to (.+?) members","广播给 $1 位成员"],["\\[Group message \\| (.+?)\\]","【分组消息｜$1】"],["(.+?) sent you a message:","$1 向你发送了一条消息："],["Message ID: (.+?)","消息编号：$1"],["\\[Group reply \\| (.+?)\\]","【分组回复｜$1】"],["(.+?) replied to your message:","$1 回复了你的消息："],["Original message ID: (.+?)","原消息编号：$1"],["Message interjected to (.+?) members","消息已插话发送给 $1 位成员"],["Delivered to (.+?); (.+?) failed; the failed records stay in the queue","已投递 $1 位，$2 位投递失败；失败记录已保留在队列中"],["Sender: (.+?)","发送人：$1"],["Will be interjected to all (.+?) members as the user","将以「用户」身份插话发送给全部 $1 位成员"],["Will be interjected to the other (.+?) members","将插话发送给另外 $1 位成员"],["You have (.+?) messages awaiting a reply\\. Reply first to send new messages\\.","你有 $1 条消息待回复。先完成回复，才能继续发送新消息。"],["(.+?)/4000 · Ctrl\\+Enter to send","$1/4000 · Ctrl+Enter 发送"],["All (.+?)","全部 $1"],["Awaiting my reply (.+?)","待我回复 $1"],["Sent by me (.+?)","我发出的 $1"],["(.+?) · (.+?)","$1 · $2"],["Messages · (.+?)","消息 · $1"],["(.+?)/(.+?) members","$1/$2 成员"],["(.+?) tasks","$1 个任务"],["Joined \"(.+?)\" as leader","已加入「$1」并成为组长"],["Joined \"(.+?)\"","已加入「$1」"],["Left \"(.+?)\"","已退出「$1」"],["Created \"(.+?)\"; this conversation is now the leader","已创建「$1」，当前对话成为组长"],["(.+?) · click to rename","$1 · 点击重命名"],["A leader already exists \\((.+?)\\); taking over makes them a member\\.","已有组长 $1，接管后对方会转为成员。"],["(.+?) groups","$1 个分组"],["(.+?) leader seats","$1 组长"],["(.+?)(.+?)","$1$2"],["(.+?) edges","$1 条连线"],["Selected \"(.+?)\"; click another card to finish the link \\(Esc to cancel\\)","已选中「$1」，再点击另一张卡片完成连线（Esc 取消）"],["assignee (.+?)","负责人 $1"],["Delete \"(.+?)\"\\? Its edges will be deleted too\\.","确定要删除「$1」吗？与它相连的连线也会一并删除。"]]
 
     let maLocale = "en"
 
