@@ -1,6 +1,6 @@
 {
   "name": "dsh-multi-agent",
-  "version": "0.8.12",
+  "version": "0.8.13",
   "description": "Multi-agent groups for DeepSeek Harness: permission-aware tools for groups, tasks, messages, file locks and token usage, with a visual sidebar panel.",
   "license": "MIT",
   "type": "module",
