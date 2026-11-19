@@ -8,7 +8,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - The server re-checks permissions on every write; tool visibility is only a hint.
 - Unsure about your group or role? Call `multi_agent_groups` first.
 
-## Tools (7; most select the operation with `op="-x"`)
+## Tools (6; most select the operation with `op="-x"`)
 
 ### multi_agent_groups
 - `-l` (default): list all groups, your role, leaders and members. The first line is your own session ID (`Your session ID: …`), which other members need for DMs and task assignment.
@@ -53,13 +53,14 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `read` locks are shared, `write` locks are exclusive. A conflicting fs call is denied with `FILE_IN_USE` until the holder releases it (or the 3/15-minute TTL expires). Locks are released when the fs call finishes.
 - `bash` and other shell commands are **not** covered by the guard.
 
-### Member lifecycle (no tool)
-- There is no lifecycle tool anymore. A member is **parked** (archived status) while it has no unfinished task, and active while it has one:
+### Member lifecycle (no tool, no handover)
+- The old lifecycle operations are gone: there is no `multi_agent_member` tool and no handover/self-archive/restore op. A member is **parked** (archived status) while it has no unfinished task, and active while it has one:
   - Marking the last task `done` (with its module brief) parks the member automatically. A task cannot be marked `done` without the brief.
   - Assigning a task (`-u assigneeSessionId`, or `-c … assigneeSessionId`) revives a parked member and wakes it with a task notification. Assignment is the only notification a parked member receives.
-  - The leader is never parked automatically; the user can archive the leader by hand from the Manage tab.
+  - Joining a group without an unfinished task parks the session immediately, so a new member waits for an assignment instead of chatting.
+  - The leader is never parked automatically; the user can archive the leader by hand from the Manage tab and undo it with the same button (`Unarchive`).
 - Parked members receive no messages: broadcasts skip them, and a DM to one fails with `MEMBER_ARCHIVED`. They do not count toward the session limit (the member counter shows active members only).
-- The Manage tab lists active members and, below them, parked members with `auto`/`manual` and the archive date. There is no Restore button: assign a task and the member comes back.
+- The Manage tab lists active members and, below them, parked members with `auto`/`manual` and the archive date. There is no Restore button: assign a task and the member comes back. The archived leader row carries `Unarchive`, the only way back for a manual archive.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
 ### multi_agent_message
@@ -102,7 +103,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
-- Manage lists active members and, below them, **parked members** (archive date plus `auto`/`manual`). Parked members get no messages and are not counted; assign a task to revive one. Active rows carry `设为组长`/`Set as leader` and `移除`/`Remove`; the leader row also has a manual `归档`/`Archive`.
+- Manage lists active members and, below them, **parked members** (archive date plus `auto`/`manual`). Parked members get no messages and are not counted; assign a task to revive one. Active rows carry `设为组长`/`Set as leader` and `移除`/`Remove`; the leader row also has a manual `归档`/`Archive`, and an archived leader shows `取消归档`/`Unarchive`.
 
 - A done task shows its module brief (label `Module brief`) instead of a one-line completion note.
 - The page adapts to phone widths (v0.8.11): cards stack in one column, the tab bar wraps instead of overflowing, the detail header and the message header switch to two rows, and the activity diff keeps its line-number gutter. Width comes from the host frame, so it follows the pane, not a media query.
