@@ -2142,8 +2142,7 @@ function isFreshActivity(activity) {
                     )
                   }),
                 ),
-            archivedMembers.length > 0
-              ? h(
+            h(
                   'div',
                   { className: 'ma-archived' },
                   h(
@@ -2152,7 +2151,9 @@ function isFreshActivity(activity) {
                     h('strong', null, 'Archived members'),
                     h('span', { className: 'ma-count-pill' }, `${archivedMembers.length}`),
                   ),
-                  h(
+                  archivedMembers.length === 0
+                    ? h('p', { className: 'ma-archived-empty' }, 'No archived members yet; members appear here after they archive themselves with -z.')
+                    : h(
                     'div',
                     { className: 'ma-archived-list' },
                     archivedMembers.map((membership) => {
@@ -2189,8 +2190,7 @@ function isFreshActivity(activity) {
                       )
                     }),
                   ),
-                )
-              : null,
+                ),
             restoreTarget
               ? h(
                   'div',
@@ -6004,6 +6004,7 @@ function isFreshActivity(activity) {
 .ma-archived { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .ma-archived-list { display: flex; flex-direction: column; gap: 4px; }
 .ma-archived-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px dashed var(--ma-border-strong); border-radius: 8px; background: var(--ma-soft); }
+.ma-archived-empty { margin: 2px 0 0; color: var(--ma-text-3); font-size: 10.5px; line-height: 1.5; }
 .ma-archived-pill { font-size: 9px; padding: 1px 6px; border-radius: 999px; color: var(--ma-text-3); background: var(--ma-soft-strong); white-space: nowrap; }
 .ma-task-empty {
   position: absolute;
@@ -6255,6 +6256,7 @@ function isFreshActivity(activity) {
     Object.assign(MA_ZH_EXACT, {
       "Module brief": "模块说明",
       "Archived members": "已归档成员",
+      "No archived members yet; members appear here after they archive themselves with -z.": "暂无归档成员。成员用 -z 归档后会出现在这里。",
       "Handed over": "已交接",
       "Restore": "召回",
       "Confirm restore": "确认召回",
