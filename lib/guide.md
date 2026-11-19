@@ -53,10 +53,13 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `read` locks are shared, `write` locks are exclusive. A conflicting fs call is denied with `FILE_IN_USE` until the holder releases it (or the 3/15-minute TTL expires). Locks are released when the fs call finishes.
 - `bash` and other shell commands are **not** covered by the guard.
 
-### multi_agent_member (member lifecycle)
-- `-h`: hand over a member. Leader only. Needs `sessionId`. Marks the member's claimed tasks and the membership as handed over, then **wakes the member** with a notification: write the module brief for every remaining card, then archive itself with `-z`. The Manage tab also offers `交接`/`Hand over` per row (`再次通知`/`Notify again` re-sends it).
-- `-z`: archive yourself. Members only (the leader cannot archive itself). The leader can archive a member from the Manage tab (`归档`/`Archive`), which runs the same checks: every claimed task must be done with a module brief or already handed over. Every task you claimed must be `done` with a `completionNote` (module brief), or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH when the runtime allows and can only be restored by the leader.
-- `-g`: restore a member. Leader only. Needs `sessionId` and an unfinished (`todo`/`doing`) `taskId` not assigned to somebody else; the task is assigned to the member, then the session is unarchived. Restoring without a task is refused.
+### Member lifecycle (no tool)
+- There is no lifecycle tool anymore. A member is **parked** (archived status) while it has no unfinished task, and active while it has one:
+  - Marking the last task `done` (with its module brief) parks the member automatically. A task cannot be marked `done` without the brief.
+  - Assigning a task (`-u assigneeSessionId`, or `-c … assigneeSessionId`) revives a parked member and wakes it with a task notification. Assignment is the only notification a parked member receives.
+  - The leader is never parked automatically; the user can archive the leader by hand from the Manage tab.
+- Parked members receive no messages: broadcasts skip them, and a DM to one fails with `MEMBER_ARCHIVED`. They do not count toward the session limit (the member counter shows active members only).
+- The Manage tab lists active members and, below them, parked members with `auto`/`manual` and the archive date. There is no Restore button: assign a task and the member comes back.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
 ### multi_agent_message
@@ -72,7 +75,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`), work only on assigned tasks, set `-s taskId status=done` when done, reply to messages.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the exact lines a write added/removed; just work normally.
-6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). No next task and the leader handed you over? Archive yourself (`multi_agent_member op="-z"`); the leader restores you (`op="-g"`) when a new task is available.
+6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). With no unfinished task left you are parked automatically and stop receiving messages; the next assignment revives you and wakes you with a task notification.
 7. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
@@ -95,11 +98,12 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 - `ALREADY_REPLIED` / `NOT_RECIPIENT` (409/403); `NO_PENDING_REPLY` (404): nothing left to answer.
 - `NOT_ASSIGNEE` (403): that task belongs to another member; `SELF_PRIVATE` (400): cannot DM yourself.
 - `INVALID_*` (400); `*_NOT_FOUND` (404); `SESSION_SERVICE` (503): session service unavailable.
-- Member lifecycle: `NOTE_REQUIRED` / `HANDOVER_REQUIRED` / `TASK_LOCKED` / `ALREADY_ARCHIVED` / `NOT_ARCHIVED` / `CANNOT_HANDOVER_LEADER` / `CANNOT_ARCHIVE_LEADER` (400/409).
+- Member lifecycle: `NOTE_REQUIRED` (done without a module brief) / `TASK_LOCKED` (done record cannot be deleted) / `MEMBER_ARCHIVED` (DM to a parked member) (400/409).
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
-- Manage lists active members and, below them, **archived members** (with archive date and a `Handed over` mark). A `Restore` button turns one back into a working member: pick an unfinished task, it is assigned to them and their conversation is reopened. The leader can also do it with `multi_agent_member op="-g"`. Each active member row carries `设为组长`/`Set as leader`, `交接`/`Hand over` and `归档`/`Archive` buttons, so the leader never needs an agent session to move a member through the lifecycle. `交接` notifies the member and leaves the archiving to them (`-z`) after they write the module briefs; `归档` is the leader-side shortcut and runs the same checks.
+- Manage lists active members and, below them, **parked members** (archive date plus `auto`/`manual`). Parked members get no messages and are not counted; assign a task to revive one. Active rows carry `设为组长`/`Set as leader` and `移除`/`Remove`; the leader row also has a manual `归档`/`Archive`.
+
 - A done task shows its module brief (label `Module brief`) instead of a one-line completion note.
 - The page adapts to phone widths (v0.8.11): cards stack in one column, the tab bar wraps instead of overflowing, the detail header and the message header switch to two rows, and the activity diff keeps its line-number gutter. Width comes from the host frame, so it follows the pane, not a media query.
 - Max sessions per group (2–32, default 8).
