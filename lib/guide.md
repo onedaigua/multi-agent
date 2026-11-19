@@ -7,6 +7,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - A session can join several groups with a different role in each.
 - The server re-checks permissions on every write; tool visibility is only a hint.
 - Unsure about your group or role? Call `multi_agent_groups` first.
+- Leader-only: group edit/delete, member add/remove/role, task create/edit/delete/link, `create_member`, `multi_agent_usage`. Members list groups/tasks/activity, work their own cards, and send/reply to messages.
 
 ## Tools (7; most select the operation with `op="-x"`)
 
@@ -38,6 +39,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `-l`: list tasks and edges (any member).
 - `-c`: create. Needs `title` (1–80); `status` (`todo`|`doing`|`done`) defaults to `todo`, and `status="done"` also needs `completionNote` — the module brief (see below). Leader only.
 - `-u`: edit. Needs `taskId`; pass `title`, `description`, `status`, `completionNote`, `assigneeSessionId` (empty string clears it) as needed. Leader only; a leader may assign a card to itself.
+- Assigning a card (`-u assigneeSessionId`, or `-c … assigneeSessionId`) pushes a notification to the assignee with the title, id, the description and an explicit "start now" instruction, so no separate wake-up is needed. The same call revives a parked member.
 - `-d`: delete. Needs `taskId`; its edges go too. Leader only.
 - `-s`: set status. Needs `taskId` and `status`; allowed for the assignee or the leader. Marking a task `done` requires a non-empty `completionNote` (pass it with `-s` or `-u`): the module brief that tells another agent what the module does, where its entry points are and how to use it.
 - A task that is `done` with a module brief is a permanent record: nobody can delete it (tool returns `TASK_LOCKED`), and every member can list it.
@@ -66,12 +68,12 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
 ### multi_agent_usage
-- `-l`: token usage report for one group. Needs `groupId` only when you lead several groups. One row per member (leader or member, input / cache read / output), plus the group total and each share; `refresh=true` bypasses the 15s cache.
+- `-l`: token usage report for one group. Leader only (members do not get this tool). Needs `groupId` only when you lead several groups. One row per member (leader or member, input / cache read / output), plus the group total and each share; `refresh=true` bypasses the 15s cache.
 - Values are the provider-reported tokens of each session, the same numbers as the Usage tab; sessions that have not reported usage yet are shown as "no usage reported yet".
 
 ### multi_agent_message
 - `-l`: list messages (leader sees the whole group; members only their own).
-- `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`). A DM to a parked member also needs `taskId` of one of their done tasks: the task reopens (`doing`, module brief cleared), the member is woken and returns; it must write a new module brief before it can be parked again.
+- `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`). A DM to a parked member also needs `taskId` of one of their done tasks (`taskId` is a top-level tool parameter, separate from the text): the task reopens (`doing`, module brief cleared), the member is woken and returns; it must write a new module brief before it can be parked again.
 - `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the error lists candidates). Every reply is also stored as its own message (`Reply to <messageId>`), so `-l` and the UI queue show the full audit chain, not only the nested `reply:` line.
 - Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait. Assigning a task sends the same kind of notification with the task description and a "start now" instruction; the member does not need a separate request.
 - A DSH notice such as "failed before it finished" means that turn was interrupted (network, abort, provider error) and the session is still alive; send the member a message or assign a task to continue. It is not a plugin error and the member is not parked by it.
@@ -82,14 +84,14 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 2. Leader: split work into task modules first (`multi_agent_task -c title=... status=todo`); each spawned session must bind one unassigned task.
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`), work only on assigned tasks, set `-s taskId status=done` when done, reply to messages.
-5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the exact lines a write added/removed; just work normally.
+5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the exact lines a write added/removed; writes to the same file within 5 s share one diff record, later rounds get their own record; just work normally.
 6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). With no unfinished task left you are parked automatically and stop receiving broadcasts; the next assignment revives you, and a DM that names one of your done tasks reopens it and wakes you too.
 7. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
 
 ## Limits
-- Tasks: 200; edges: 800; task ids look like `task_…`, `edge_…`; title 1–80; description ≤600.
+- Tasks: 200; edges: 800; task ids look like `task_…`, `edge_…`; title 1–80; description ≤600; module brief ≤600. A length error reports the actual character count.
 - Groups: 40; memberships: 4000; name ≤40; description ≤240; max sessions per group 2–32 (default 8, user-adjustable).
 - Messages: ≤4000 chars each; 2000 kept; no cross-group sends.
 - A leader cannot demote or remove itself; use `-x` to leave. If the leader leaves, the earliest member is promoted; empty groups are deleted.
@@ -106,7 +108,8 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 - `ALREADY_REPLIED` / `NOT_RECIPIENT` (409/403); `NO_PENDING_REPLY` (404): nothing left to answer.
 - `NOT_ASSIGNEE` (403): that task belongs to another member; `SELF_PRIVATE` (400): cannot DM yourself.
 - `INVALID_*` (400); `*_NOT_FOUND` (404); `SESSION_SERVICE` (503): session service unavailable.
-- Member lifecycle: `NOTE_REQUIRED` (done without a module brief) / `TASK_LOCKED` (done record cannot be deleted) / `TASK_CONTEXT_REQUIRED` (DM to a parked member without `taskId`) / `TASK_NOT_REOPENABLE` (the task is not theirs or not done) (400/404/409).
+- Member lifecycle: `NOTE_REQUIRED` (done without a module brief) / `TASK_LOCKED` (done record cannot be deleted) / `TASK_CONTEXT_REQUIRED` (DM to a parked member without `taskId`) (400).
+- Reopen errors: `TASK_NOT_FOUND` (404, `taskId` is not in the group) / `TASK_NOT_REOPENABLE` (409, the task is not this member's or is not done).
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
@@ -116,7 +119,8 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 - The page adapts to phone widths (v0.8.11): cards stack in one column, the tab bar wraps instead of overflowing, the detail header and the message header switch to two rows, and the activity diff keeps its line-number gutter. Width comes from the host frame, so it follows the pane, not a media query.
 - Max sessions per group (2–32, default 8).
 - Spawn model/reasoning: inherit leader (default) or a fixed model.
-- Token usage (UI only, no tool): per-member totals, group total and integer share; server cache 15 s, refresh forces a recount.
+- Token usage: the `multi_agent_usage` tool (leader) returns the same numbers as the Usage tab; server cache 15 s, `refresh=true` forces a recount.
+- Messages tab: a parked recipient is shown with `· parked`; picking one enables the `Reopen task` list of its done tasks. Replies are separate rows (`Reply to <messageId>`) in the queue, and the composer shows the parked-member hint above the text box.
 
 ## HTTP API (debugging)
 Base `/multi-agent/api`, same-origin only, requires header `x-dsh-multi-agent: 1`.
