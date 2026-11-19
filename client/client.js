@@ -1916,6 +1916,8 @@ function isFreshActivity(activity) {
       const [notice, setNotice] = useState(null)
       const [takeover, setTakeover] = useState(null)
       const [removeTarget, setRemoveTarget] = useState(null)
+      const [restoreTarget, setRestoreTarget] = useState(null)
+      const [restoreTaskId, setRestoreTaskId] = useState('')
       const [addOpen, setAddOpen] = useState(false)
       const members = groupMembers(state, group.id)
       const activeMembers = members.filter((membership) => !membership.archivedAt)
@@ -1972,6 +1974,51 @@ function isFreshActivity(activity) {
           setRemoveTarget(null)
         } catch (caught) {
           setError(caught.message || 'Failed to remove the member; try again later')
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      function restoreCandidatesFor(member) {
+        if (!member) return []
+        return (state.tasks || []).filter((task) =>
+          task.groupId === group.id
+          && !(task.status === 'done' && task.completionNote)
+          && (!task.assigneeSessionId || task.assigneeSessionId === member.sessionId))
+      }
+
+      function requestRestore(member) {
+        const candidates = restoreCandidatesFor(member)
+        setRestoreTarget(member)
+        setRestoreTaskId(candidates.length > 0 ? candidates[0].id : '')
+        setRemoveTarget(null)
+        setTakeover(null)
+        setError(null)
+        setNotice(null)
+      }
+
+      async function restoreMember() {
+        if (!restoreTarget || busy) return
+        if (!restoreTaskId) {
+          setError('Create an unfinished task first: a restored member must be bound to one.')
+          return
+        }
+        setBusy(true)
+        setError(null)
+        setNotice(null)
+        try {
+          await store.mutate({
+            action: 'restoreMember',
+            groupId: group.id,
+            sessionId: restoreTarget.sessionId,
+            taskId: restoreTaskId,
+          })
+          const task = (state.tasks || []).find((candidate) => candidate.id === restoreTaskId)
+          setNotice(`Restored ${displayNameOf(byId, restoreTarget.sessionId)}${task ? ` into "${task.title}"` : ''}`)
+          setRestoreTarget(null)
+          setRestoreTaskId('')
+        } catch (caught) {
+          setError(caught.message || 'Failed to restore the member; try again later')
         } finally {
           setBusy(false)
         }
@@ -2084,6 +2131,8 @@ function isFreshActivity(activity) {
                             onClick: () => {
                               setRemoveTarget(membership)
                               setTakeover(null)
+                              setRestoreTarget(null)
+                              setRestoreTaskId('')
                               setError(null)
                             },
                           },
@@ -2093,6 +2142,104 @@ function isFreshActivity(activity) {
                     )
                   }),
                 ),
+            archivedMembers.length > 0
+              ? h(
+                  'div',
+                  { className: 'ma-archived' },
+                  h(
+                    'div',
+                    { className: 'ma-manage-head' },
+                    h('strong', null, 'Archived members'),
+                    h('span', { className: 'ma-count-pill' }, `${archivedMembers.length}`),
+                  ),
+                  h(
+                    'div',
+                    { className: 'ma-archived-list' },
+                    archivedMembers.map((membership) => {
+                      const name = displayNameOf(byId, membership.sessionId)
+                      return h(
+                        'div',
+                        { key: membership.sessionId, className: 'ma-archived-row' },
+                        h(
+                          'span',
+                          { className: 'ma-member-avatar', style: { color: group.color } },
+                          h(Icon, { name: 'clock', size: 15 }),
+                        ),
+                        h(
+                          'span',
+                          { className: 'ma-manage-person' },
+                          h('strong', { title: name }, name),
+                          h(
+                            'small',
+                            { title: membership.sessionId },
+                            `${shortId(membership.sessionId)} · archived ${formatDate(membership.archivedAt)}`,
+                          ),
+                        ),
+                        membership.handoverAt ? h('span', { className: 'ma-archived-pill' }, 'Handed over') : null,
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'ma-text-btn ma-text-btn-accent',
+                            disabled: busy,
+                            onClick: () => requestRestore(membership),
+                          },
+                          'Restore',
+                        ),
+                      )
+                    }),
+                  ),
+                )
+              : null,
+            restoreTarget
+              ? h(
+                  'div',
+                  { className: 'ma-manage-confirm' },
+                  h(
+                    'p',
+                    null,
+                    `Restore ${displayNameOf(byId, restoreTarget.sessionId)} into an unfinished task; the task is assigned to them and the conversation is reopened.`,
+                  ),
+                  restoreCandidatesFor(restoreTarget).length === 0
+                    ? h('p', { className: 'ma-field-hint' }, 'All tasks are done or taken. Create an unfinished task first.')
+                    : h(
+                        'select',
+                        {
+                          className: 'ma-select',
+                          value: restoreTaskId,
+                          onChange: (event) => setRestoreTaskId(event.target.value),
+                        },
+                        restoreCandidatesFor(restoreTarget).map((task) =>
+                          h('option', { key: task.id, value: task.id }, `${task.title} · ${task.id}`)),
+                      ),
+                  h(
+                    'div',
+                    { className: 'ma-manage-confirm-actions' },
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'ma-btn ma-btn-ghost ma-btn-sm',
+                        onClick: () => {
+                          setRestoreTarget(null)
+                          setRestoreTaskId('')
+                        },
+                      },
+                      'Cancel',
+                    ),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'ma-btn ma-btn-primary ma-btn-sm',
+                        disabled: busy || !restoreTaskId,
+                        onClick: restoreMember,
+                      },
+                      'Confirm restore',
+                    ),
+                  ),
+                )
+              : null,
             takeover
               ? h(
                   'div',
@@ -4076,16 +4223,16 @@ function isFreshActivity(activity) {
           h(
             'label',
             { className: 'ma-field' },
-            h('span', { className: 'ma-field-label' }, 'Completion note', status === 'done' ? h('em', null, 'Required for done') : null),
+            h('span', { className: 'ma-field-label' }, 'Module brief', status === 'done' ? h('em', null, 'Required for done') : null),
             h('textarea', {
               className: 'ma-textarea',
               value: completionNote,
               maxLength: 600,
-              rows: 3,
-              placeholder: 'What was delivered, where the result lives, how it was verified.',
+              rows: 4,
+              placeholder: 'Introduce the module you delivered: what it does, its key files or entry points, how others call or extend it, and known limits.',
               onChange: (event) => setCompletionNote(event.target.value),
             }),
-            h('span', { className: 'ma-field-hint' }, `${completionNote.trim().length}/600`),
+            h('span', { className: 'ma-field-hint' }, `${completionNote.trim().length}/600 · others read this to understand your module, not just to see that it finished`),
           ),
           h(
             'label',
@@ -4582,7 +4729,12 @@ function isFreshActivity(activity) {
                     ),
                     task.description ? h('p', { className: 'ma-task-desc' }, task.description) : null,
                     task.completionNote
-                      ? h('p', { className: 'ma-task-note', title: task.completionNote }, `✓ ${task.completionNote}`)
+                      ? h(
+                          'div',
+                          { className: 'ma-task-brief' },
+                          h('span', { className: 'ma-task-brief-label' }, 'Module brief'),
+                          h('p', { className: 'ma-task-brief-text', title: task.completionNote }, task.completionNote),
+                        )
                       : null,
                     task.handedOverAt
                       ? h('span', { className: 'ma-task-handover' }, 'Handed over by leader')
@@ -5821,14 +5973,31 @@ function isFreshActivity(activity) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.ma-task-note {
+.ma-task-brief {
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--ma-border-strong);
+  background: var(--ma-soft);
+}
+.ma-task-brief-label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ma-text-3);
+}
+.ma-task-brief-text {
   margin: 0;
   color: var(--ma-text-2);
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 10.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
 }
 .ma-task-handover { align-self: flex-start; font-size: 9px; padding: 1px 6px; border-radius: 999px; color: var(--ma-text-3); background: var(--ma-soft-strong); }
@@ -6083,7 +6252,16 @@ function isFreshActivity(activity) {
 
 
     const MA_ZH_EXACT = {"User":"用户","leader":"组长","member":"成员","Current workspace":"当前工作区","G":"组","Cannot connect to the group service; make sure the plugin finished loading":"无法连接分组服务，请确认插件已加载完成","Close":"关闭","Save failed; try again later":"保存失败，请稍后重试","Edit group":"编辑分组","New group":"新建分组","Edit the name, description or color. Leadership only moves through takeover; it cannot be revoked directly.":"修改名称、说明或标识色。组长只能通过接管转移，不能直接取消。","A leader must be chosen at creation; a group never has a leader vacancy.":"创建时必须指定一位组长，分组不会出现组长空缺。","Cancel":"取消","Saving…":"保存中…","Save changes":"保存修改","Create group":"创建分组","Group name":"分组名称","Required":"必填","e.g. Product R&D":"例如：产品研发组","Group description":"分组说明","What does this group do? Visible to agents that join later.":"这个小组负责什么？写给之后加入的 Agent 看。","First leader":"首任组长","The current conversation becomes the leader automatically":"当前对话将自动成为组长","Choose a leader":"选择一位组长","No sessions available in the current workspace; create or open a conversation on the left first.":"当前工作区没有可用会话，请先在左侧创建或打开一个对话。","Each group has exactly one leader; add other members later.":"每个分组必须且只能有一位组长；其他成员后续添加。","Color":"标识色","Operation failed; try again later":"操作失败，请稍后重试","Working…":"处理中…","Current":"当前","No members":"暂无成员"," · leader vacant":" · 组长空缺","read-only":"只读","read/write":"读写","open":"使用","move":"移动","copy":"复制","The plugin service has not loaded a new version yet; restart DSH to see the token report":"插件服务尚未加载新版本，重启 DSH 后即可看到 Token 报表","Failed to load the token report":"Token 报表加载失败","Token usage":"Token 用量","Refreshing…":"刷新中…","Refresh":"刷新","Group total":"组内共消耗","Counting member usage…":"正在统计成员用量…","This group has no members yet, so there is no usage.":"这个分组还没有成员，暂无用量。","Leader":"组长","Member":"成员","Summed from the tokens actually reported by the provider (including cached reads and output); shares are rounded to 1% of the group total.":"按 provider 实际回报的 tokens 累计（含缓存读取与输出）；占比按组内总量四舍五入到 1%。","Activity":"执行列表","In use only":"只看占用中","Show all":"显示全部","Enter a member ID to search all records; append a number for the latest N":"输入组员 ID 搜索全部记录，可加数字取最近条数","Search activity by member ID":"按组员 ID 搜索执行记录","No activity matches this member.":"这个组员没有匹配的执行记录。","No activity yet. Entries appear here automatically when a member opens or edits a workspace file.":"还没有执行记录。成员打开或修改工作区文件后会自动出现在这里。","No files are in use right now.":"当前没有文件被占用。","No group description yet.":"还没有填写分组说明。","Leader vacant":"组长空缺","Delete group":"删除分组","Set a member as leader directly in the list below, or claim it from the top entry after opening a member conversation.":"可在下方成员列表中直接设为组长，或进入成员对话后从顶部入口认领。","Messages":"消息","Manage group":"管理组","Add members":"添加成员","No members yet":"还没有成员","Scan conversations in the current workspace to add members, or open a conversation and join a group from the top.":"扫描当前工作区的对话添加成员，或打开对话在顶部选择加入分组。","Scan sessions and add":"扫描会话并添加","Permission":"权限","Joined":"加入时间","Actions":"操作","A group must keep a leader; set another member as leader first":"分组必须保留组长，可先把其他成员设为组长","Current leader":"当前组长","Make a regular member of this group":"转为本组普通成员","Make member":"转为成员","Take over as leader":"接管本组组长","Set as leader":"设为组长","Remove":"移出","A conversation can belong to several groups. Member names come from the conversation title and follow renames.":"一个对话可以同时属于多个分组。这里的成员名称来自对话标题，改名会同步更新。","All workspaces":"全部工作区","Failed to add members; try again later":"添加成员失败，请稍后重试","Scan sessions in the current workspace and pick conversations to join this group.":"扫描当前工作区的会话，选择要加入这个分组的对话。","No sessions selected":"尚未选择会话","Adding…":"添加中…","Workspace":"工作区","Search sessions in the current workspace":"搜索当前工作区的会话","Search sessions":"搜索会话","Sessions that can be added":"可添加的会话","No matching sessions":"没有匹配的会话","No sessions can be added from the current workspace":"当前工作区没有可添加的会话","Try another keyword, or switch workspace.":"换一个关键词试试，或切换工作区。","Sessions in this workspace may all have joined a group, or there are no other sessions.":"这个工作区的会话可能都已加入分组，或还没有其他会话。","Join as":"加入身份","Only one leader can be added at a time":"每次只能添加一位组长","Several members can be added at once":"可一次添加多位成员","Only one leader can be added at a time; select fewer or choose member instead.":"一次只能添加一位组长，请减少选择或改为成员。","Failed to load the model list":"模型列表加载失败","Pick a model first":"请先选择一个模型","Saved: new sessions use the specified model":"已保存：新会话使用指定模型","Saved: new sessions inherit the leader settings":"已保存：新会话继承组长设置","New session inheritance":"新会话继承","Custom":"自定义","Inherit from leader":"继承组长","Model and reasoning effort used when the leader creates a conversation with the \"spawn member session\" tool; new sessions inherit no conversation context.":"组长用「创建成员会话」工具新建对话时使用的模型与推理等级；新会话不继承任何对话上下文。","Specified model":"指定模型","Model":"模型","Loading the model list…":"正在读取模型列表…","Failed to load the model list; try again later":"模型列表加载失败，请稍后重试","No models available right now":"当前没有可用模型","Reasoning effort":"推理等级","Default":"默认","This model has no adjustable reasoning effort.":"这个模型没有可调整的推理等级。","Pick a model to adjust reasoning effort.":"选择模型后可调整推理等级。","Reads the current model and reasoning effort of the leader at creation time.":"创建时读取组长当前的模型与推理等级。","Save inheritance settings":"保存继承配置","Enter an integer between 2 and 32":"请输入 2–32 之间的整数","Max sessions":"最大会话数","Max sessions this group can hold (including the leader)":"这个团队最多容纳的会话数（含组长）","Save":"保存","Only you (the user) can change this; it caps leader spawning and member joins. Keep the number of task modules around \"max sessions − 1\".":"只有你（用户）可以修改；组长创建成员会话、成员加入时都会受此上限约束。实际任务模块数量建议保持在“最大会话数 − 1”左右。","Failed to change permission; try again later":"权限调整失败，请稍后重试","Failed to remove the member; try again later":"移出成员失败，请稍后重试","Members and permissions":"成员与权限","Make ":"将 "," the leader; the current leader ":" 设为组长，现任组长 "," becomes a member automatically.":" 会自动转为成员。","Confirm takeover":"确认接管"," from this group? Its role in other groups is unaffected.":" 移出这个分组？该对话在其他分组中的角色不受影响。","Confirm removal":"确认移出","Add or remove members and adjust leader and member permissions.":"添加或移出成员，调整组长与成员权限。","Done":"完成","Broadcast":"广播","Delivery failed":"投递失败","Delivered":"已送达","Delivering":"投递中","You must reply after receiving it: call the multi_agent_message tool (op=\"-r\") and pass content to reply.":"收到后必须回复：调用 multi_agent_message 工具（op=\"-r\"），传 content 即可回复。","Failed to load the message queue":"消息队列加载失败","Interjection delivery failed":"插话投递失败","The message was recorded but no delivery info was returned":"消息已记录，但没有返回投递信息","Send failed; try again later":"发送失败，请稍后重试","Reply recorded and shown to the user":"回复已记录并展示给用户","Reply interjected to the original sender":"回复已插话发送给原发送者","Reply failed; try again later":"回复失败，请稍后重试","User (me) · Console":"用户（我） · 控制台","This conversation is no longer in this group":"当前对话已不在这个分组","View identity":"查看身份","User view · all group messages":"用户视图 · 全组消息","Leader view · all group messages":"组长视图 · 全组消息","Member view · related to me":"成员视图 · 与我相关"," queued messages":" 条队列消息"," awaiting my reply":" 条待我回复"," sent by me":" 条我发出的","Send interjection":"插话发送","Whole group":"广播全员","Private message":"私聊","To":"发给","No other members":"没有其他成员","The group has no other members yet":"组内还没有其他成员","Reply now":"去回复","Write a broadcast; every group member receives an interjection…":"写一条广播消息，所有组内成员都会收到插话…","Write a private message; only the selected members receive an interjection…":"写一条私聊消息，只有选中的成员会收到插话…","Sending…":"发送中…","Message queue":"消息队列","Loading the message queue…":"正在读取消息队列…","No messages awaiting a reply.":"没有待回复消息。","You have not sent any messages yet.":"你还没有发送过消息。","The queue is empty; send the first group message.":"队列还是空的，发送第一条组内消息。","Sent by me":"我发出的","Reply delivery failed":"回复投递失败","Replied":"已回复","No reply needed":"无需回复","Awaiting reply":"待回复","Reply to this message; the reply appears in the message queue of the user…":"回复这条消息，回复会展示在用户的消息队列…","Reply to this message; the reply is interjected to the original sender…":"回复这条消息，回复会插话发送给原发送者…","Replying lifts the send restriction":"回复后即可解除发送限制","The reply goes into the message queue":"回复内容会进入消息队列","Replying…":"回复中…","Send reply":"发送回复","Reply":"回复","You are viewing all broadcasts and private messages as the user; member replies appear in the queue of this message.":"你正以用户身份查看全组广播与私聊；成员回复会显示在这条消息的队列中。","The leader sees the broadcast and private message queues of the group; members see only messages related to them.":"组长可查看本组广播与私聊队列；成员只能查看与自己相关的消息。","Every member must reply to received messages; without a reply no new message can be sent.":"每个成员必须回复收到的消息；未回复时不能发送新消息。","Broadcasts and private messages reach conversations as interjections; recipients must reply.":"组内广播与私聊都通过插话送达目标对话；收到消息的成员需要回复。","Group tasks":"组内任务","Usage":"用量统计","All groups":"全部分组","No description yet":"还没有填写说明","Group updated":"分组已更新","Group created":"分组已创建","Group deleted":"分组已删除","Agent Groups":"Agent 分组","Manage members and permissions; view group tasks, messages, usage and activity.":"管理成员与权限，查看组内任务、消息、用量与执行列表。","Organize conversations into groups. Inside a group, switch between \"Manage\", \"Tasks\", \"Messages\", \"Usage\" and \"Activity\".":"按小组组织对话。进入分组后，在「管理组」「组内任务」「消息列表」「用量统计」「执行列表」之间切换。","groups":"个分组","conversations joined":"个对话已加入","leader seats":"个组长席位","One leader per group · tasks and usage are isolated per group":"每组 1 位组长 · 任务与用量按组隔离","Retry":"重试","Start with your first group":"从第一个分组开始","No matching groups":"没有匹配的分组","Create a group for agents working on the same thing, then claim leader or member from the top of a conversation.":"给负责同一件事的 Agent 建一个小组，再在对话顶部认领组长或成员。","Try another keyword, or clear the search.":"换一个关键词试试，或清空搜索。","Create the first group":"创建第一个分组","Clear search":"清空搜索","Search groups":"搜索分组","Delete group?":"删除分组？","This cannot be undone.":"这个操作不能撤销。","Delete":"确认删除"," and its membership, tasks and activity records will be removed.":" 及其成员关系、任务与执行记录将被移除。","The conversation itself is kept; it simply leaves this group.":"对话本身不会被删除，只是不再属于这个分组。","Pick groups for this conversation":"为这个对话选择分组","Failed to leave the group":"退出分组失败","The group was created but no group info was returned":"分组已创建，但没有返回分组信息","The conversation name cannot be empty":"对话名称不能为空","Renaming is not supported in this environment":"当前环境不支持重命名","Conversation name updated":"对话名称已更新","Rename failed; try again later":"重命名失败，请稍后重试","Conversation groups":"对话分组","Current conversation":"当前对话","Name this conversation":"给这个对话取个名字","Saving":"保存中","Groups":"所属分组","Not in any group yet":"尚未加入分组","Pick a group below and join as member or leader. A conversation can join several groups.":"从下方选择一个小队，成为成员或组长。一个对话可以同时加入多个分组。","Manage":"管理","Leaving…":"退出中…","Leave":"退出","Join another group":"加入其它分组","No groups yet; create one first.":"还没有分组，先创建一个小组。","This conversation is in every available group.":"这个对话已加入全部可用分组。","All groups already contain this conversation.":"所有分组都已包含这个对话。","Joining…":"加入中…","Claiming…":"认领中…","Permissions are per group; a conversation can belong to several groups.":"每个分组独立计算权限；一个对话可同时属于多个分组。","Join group":"加入分组","To do":"待开始","In progress":"进行中","Failed to save the task; try again later":"保存任务失败，请稍后重试","Edit task":"编辑任务","New task":"新建任务","Edit the title, description, status or assignee; existing edges are unaffected.":"修改标题、说明、状态或负责人；已有的连线不会受影响。","Tasks append to the end of the list and stack top to bottom; after creating one, click cards to link them.":"任务会追加到列表末尾并从上往下排列；创建后点击卡片即可与其它任务连线。","Create task":"创建任务","Task title":"任务标题","e.g. Gather sorting algorithm requirements":"例如：整理排序算法需求","Task description":"任务说明","Write the goal, inputs and outputs, or acceptance criteria.":"写下任务的目标、输入输出或验收标准。","Status":"状态","Assignee":"负责人（归属）","Unassigned":"未分配","Only the assignee or the leader can change the task status.":"只有负责人或组长可以更改任务状态。","Edge deleted":"连线已删除","Failed to delete the edge":"删除连线失败","Task saved":"任务已保存","Tasks belong to groups; create a group in \"Agent Groups\" first":"任务归属于分组，请先在「Agent 分组」中创建分组","Task created":"任务已创建","Task deleted":"任务已删除","Edge created":"已创建连线","Failed to create the edge":"创建连线失败","Delete this edge":"删除这条连线","Tasks":"任务","Tasks stack top to bottom: click one card then another to link them a → b → c. Tasks on the same level can run in parallel.":"任务从上往下排列：点击一张卡片，再点另一张即可连成 a → b → c。同一层的任务可以并行推进。","Group":"分组","No groups":"暂无分组","Click a card to select and link · double-click to edit · click an edge to delete":"单击卡片选中后连线 · 双击编辑 · 点击连线删除","Cancel link":"取消连线","No groups available yet":"还没有可用的分组","No task cards yet":"还没有任务卡片","Tasks belong to groups; create one in \"Agent Groups\" first, then come back to add tasks.":"任务归属于分组，请先在「Agent 分组」中创建一个分组，再回到这里添加任务。","Create the first card, then click two cards to link them; tasks stack top to bottom automatically.":"新建第一张卡片，再依次点击两张卡片创建连线，任务会从上往下自动排列。","Click to select and link · double-click to edit":"单击选中后连线 · 双击编辑","Delete task":"删除任务","Failed to rename the conversation":"重命名对话失败","[dsh-multi-agent] Failed to register the groups page:":"[dsh-multi-agent] 无法注册分组主页：","[dsh-multi-agent] Failed to register the sidebar entry:":"[dsh-multi-agent] 无法注册侧栏入口：","[dsh-multi-agent] Failed to register the conversation action:":"[dsh-multi-agent] 无法注册对话操作："}
-    const MA_ZH_PATTERNS = [["Conversation (.+?)","对话 $1"],["Group service returned an error \\((.+?)\\)","分组服务返回了错误（$1）"],["Pick color (.+?)","选择颜色 $1"],["(.+?) · (.+?)(.+?)","$1 · $2$3"],["(.+?) members","$1 位成员"],[" · leader (.+?)"," · 组长 $1"],["(.+?) records","$1 条记录"],["(.+?) in use","$1 占用中"],["leader (.+?)","组长 $1"],["Updated (.+?)","更新于 $1"],["Edit (.+?)","编辑 $1"],["Delete (.+?)","删除 $1"],["Add members · (.+?)","添加成员 · $1"],["Selected (.+?)","已选择 $1 位"],["(.+?) available","$1 个可选"],["The current leader is (.+?); setting a new leader makes them a member automatically\\.","当前组长是 $1，设为组长后对方会自动转为成员。"],["There are already (.+?) sessions; the limit cannot be lower","当前已有 $1 个会话，不能小于这个数量"],["Max sessions set to (.+?)","最大会话数已调整为 $1"],["Made (.+?) the leader","已将 $1 设为组长"],["Made (.+?) a member","已将 $1 转为成员"],["Removed (.+?) from the group","已将 $1 移出分组"],["Manage \"(.+?)\"","管理「$1」"],["Added (.+?) members","已添加 $1 位成员"],["Private message to (.+?)","私聊给 $1"],["Broadcast to (.+?) members","广播给 $1 位成员"],["\\[Group message \\| (.+?)\\]","【分组消息｜$1】"],["(.+?) sent you a message:","$1 向你发送了一条消息："],["Message ID: (.+?)","消息编号：$1"],["\\[Group reply \\| (.+?)\\]","【分组回复｜$1】"],["(.+?) replied to your message:","$1 回复了你的消息："],["Original message ID: (.+?)","原消息编号：$1"],["Message interjected to (.+?) members","消息已插话发送给 $1 位成员"],["Delivered to (.+?); (.+?) failed; the failed records stay in the queue","已投递 $1 位，$2 位投递失败；失败记录已保留在队列中"],["Sender: (.+?)","发送人：$1"],["Will be interjected to all (.+?) members as the user","将以「用户」身份插话发送给全部 $1 位成员"],["Will be interjected to the other (.+?) members","将插话发送给另外 $1 位成员"],["You have (.+?) messages awaiting a reply\\. Reply first to send new messages\\.","你有 $1 条消息待回复。先完成回复，才能继续发送新消息。"],["(.+?)/4000 · Ctrl\\+Enter to send","$1/4000 · Ctrl+Enter 发送"],["All (.+?)","全部 $1"],["Awaiting my reply (.+?)","待我回复 $1"],["Sent by me (.+?)","我发出的 $1"],["(.+?) · (.+?)","$1 · $2"],["Messages · (.+?)","消息 · $1"],["(.+?)/(.+?) members","$1/$2 成员"],["(.+?) tasks","$1 个任务"],["Joined \"(.+?)\" as leader","已加入「$1」并成为组长"],["Joined \"(.+?)\"","已加入「$1」"],["Left \"(.+?)\"","已退出「$1」"],["Created \"(.+?)\"; this conversation is now the leader","已创建「$1」，当前对话成为组长"],["(.+?) · click to rename","$1 · 点击重命名"],["A leader already exists \\((.+?)\\); taking over makes them a member\\.","已有组长 $1，接管后对方会转为成员。"],["(.+?) groups","$1 个分组"],["(.+?) leader seats","$1 组长"],["(.+?)(.+?)","$1$2"],["(.+?) edges","$1 条连线"],["Selected \"(.+?)\"; click another card to finish the link \\(Esc to cancel\\)","已选中「$1」，再点击另一张卡片完成连线（Esc 取消）"],["assignee (.+?)","负责人 $1"],["Delete \"(.+?)\"\\? Its edges will be deleted too\\.","确定要删除「$1」吗？与它相连的连线也会一并删除。"]]
+    Object.assign(MA_ZH_EXACT, {
+      "Module brief": "模块说明",
+      "Archived members": "已归档成员",
+      "Handed over": "已交接",
+      "Restore": "召回",
+      "Confirm restore": "确认召回",
+      "All tasks are done or taken. Create an unfinished task first.": "任务都已完成或被占用，请先创建一个未完成的任务。",
+      "Required for done": "完成时必填",
+    })
+    const MA_ZH_PATTERNS = [["(.+?) · archived (.+?)","$1 · 已归档 $2"],["Restore (.+?) into an unfinished task; the task is assigned to them and the conversation is reopened\\.","将 $1 召回并绑定一个未完成任务：任务会指派给该成员，其会话将重新打开。"],["Conversation (.+?)","对话 $1"],["Group service returned an error \\((.+?)\\)","分组服务返回了错误（$1）"],["Pick color (.+?)","选择颜色 $1"],["(.+?) · (.+?)(.+?)","$1 · $2$3"],["(.+?) members","$1 位成员"],[" · leader (.+?)"," · 组长 $1"],["(.+?) records","$1 条记录"],["(.+?) in use","$1 占用中"],["leader (.+?)","组长 $1"],["Updated (.+?)","更新于 $1"],["Edit (.+?)","编辑 $1"],["Delete (.+?)","删除 $1"],["Add members · (.+?)","添加成员 · $1"],["Selected (.+?)","已选择 $1 位"],["(.+?) available","$1 个可选"],["The current leader is (.+?); setting a new leader makes them a member automatically\\.","当前组长是 $1，设为组长后对方会自动转为成员。"],["There are already (.+?) sessions; the limit cannot be lower","当前已有 $1 个会话，不能小于这个数量"],["Max sessions set to (.+?)","最大会话数已调整为 $1"],["Made (.+?) the leader","已将 $1 设为组长"],["Made (.+?) a member","已将 $1 转为成员"],["Removed (.+?) from the group","已将 $1 移出分组"],["Manage \"(.+?)\"","管理「$1」"],["Added (.+?) members","已添加 $1 位成员"],["Private message to (.+?)","私聊给 $1"],["Broadcast to (.+?) members","广播给 $1 位成员"],["\\[Group message \\| (.+?)\\]","【分组消息｜$1】"],["(.+?) sent you a message:","$1 向你发送了一条消息："],["Message ID: (.+?)","消息编号：$1"],["\\[Group reply \\| (.+?)\\]","【分组回复｜$1】"],["(.+?) replied to your message:","$1 回复了你的消息："],["Original message ID: (.+?)","原消息编号：$1"],["Message interjected to (.+?) members","消息已插话发送给 $1 位成员"],["Delivered to (.+?); (.+?) failed; the failed records stay in the queue","已投递 $1 位，$2 位投递失败；失败记录已保留在队列中"],["Sender: (.+?)","发送人：$1"],["Will be interjected to all (.+?) members as the user","将以「用户」身份插话发送给全部 $1 位成员"],["Will be interjected to the other (.+?) members","将插话发送给另外 $1 位成员"],["You have (.+?) messages awaiting a reply\\. Reply first to send new messages\\.","你有 $1 条消息待回复。先完成回复，才能继续发送新消息。"],["(.+?)/4000 · Ctrl\\+Enter to send","$1/4000 · Ctrl+Enter 发送"],["All (.+?)","全部 $1"],["Awaiting my reply (.+?)","待我回复 $1"],["Sent by me (.+?)","我发出的 $1"],["(.+?) · (.+?)","$1 · $2"],["Messages · (.+?)","消息 · $1"],["(.+?)/(.+?) members","$1/$2 成员"],["(.+?) tasks","$1 个任务"],["Joined \"(.+?)\" as leader","已加入「$1」并成为组长"],["Joined \"(.+?)\"","已加入「$1」"],["Left \"(.+?)\"","已退出「$1」"],["Created \"(.+?)\"; this conversation is now the leader","已创建「$1」，当前对话成为组长"],["(.+?) · click to rename","$1 · 点击重命名"],["A leader already exists \\((.+?)\\); taking over makes them a member\\.","已有组长 $1，接管后对方会转为成员。"],["(.+?) groups","$1 个分组"],["(.+?) leader seats","$1 组长"],["(.+?)(.+?)","$1$2"],["(.+?) edges","$1 条连线"],["Selected \"(.+?)\"; click another card to finish the link \\(Esc to cancel\\)","已选中「$1」，再点击另一张卡片完成连线（Esc 取消）"],["assignee (.+?)","负责人 $1"],["Delete \"(.+?)\"\\? Its edges will be deleted too\\.","确定要删除「$1」吗？与它相连的连线也会一并删除。"]]
 
     let maLocale = "en"
 

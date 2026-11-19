@@ -36,11 +36,11 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 
 ### multi_agent_task
 - `-l`: list tasks and edges (any member).
-- `-c`: create. Needs `title` (1–80); `status` (`todo`|`doing`|`done`) defaults to `todo`, and `status="done"` also needs `completionNote`. Leader only.
+- `-c`: create. Needs `title` (1–80); `status` (`todo`|`doing`|`done`) defaults to `todo`, and `status="done"` also needs `completionNote` — the module brief (see below). Leader only.
 - `-u`: edit. Needs `taskId`; pass `title`, `description`, `status`, `completionNote`, `assigneeSessionId` (empty string clears it) as needed. Leader only; a leader may assign a card to itself.
 - `-d`: delete. Needs `taskId`; its edges go too. Leader only.
-- `-s`: set status. Needs `taskId` and `status`; allowed for the assignee or the leader. Marking a task `done` requires a non-empty `completionNote` (pass it with `-s` or `-u`).
-- A task that is `done` with a completion note is a permanent record: nobody can delete it (tool returns `TASK_LOCKED`), and every member can list it.
+- `-s`: set status. Needs `taskId` and `status`; allowed for the assignee or the leader. Marking a task `done` requires a non-empty `completionNote` (pass it with `-s` or `-u`): the module brief that tells another agent what the module does, where its entry points are and how to use it.
+- A task that is `done` with a module brief is a permanent record: nobody can delete it (tool returns `TASK_LOCKED`), and every member can list it.
 - `-x`: connect. Needs `from`, `to` (task ids); rejects cycles. Leader only.
 - `-r`: delete an edge. Needs `edgeId`. Leader only.
 
@@ -55,7 +55,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 
 ### multi_agent_member (member lifecycle)
 - `-h`: hand over a member. Leader only. Needs `sessionId`. Writes the handover mark and time on the member's claimed tasks (and the membership) so the member is allowed to archive; the leader cannot archive somebody else's conversation.
-- `-z`: archive yourself. Members only (the leader cannot archive itself). Every task you claimed must be `done` with a `completionNote`, or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH when the runtime allows and can only be restored by the leader.
+- `-z`: archive yourself. Members only (the leader cannot archive itself). Every task you claimed must be `done` with a `completionNote` (module brief), or already handed over by the leader; otherwise `HANDOVER_REQUIRED` lists what is missing. The conversation is archived in DSH when the runtime allows and can only be restored by the leader.
 - `-g`: restore a member. Leader only. Needs `sessionId` and an unfinished (`todo`/`doing`) `taskId` not assigned to somebody else; the task is assigned to the member, then the session is unarchived. Restoring without a task is refused.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
@@ -72,7 +72,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`), work only on assigned tasks, set `-s taskId status=done` when done, reply to messages.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the exact lines a write added/removed; just work normally.
-6. Finished a task? Mark it `done` with a completion note. No next task and the leader handed you over? Archive yourself (`multi_agent_member op="-z"`); the leader restores you (`op="-g"`) when a new task is available.
+6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). No next task and the leader handed you over? Archive yourself (`multi_agent_member op="-z"`); the leader restores you (`op="-g"`) when a new task is available.
 7. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
@@ -99,6 +99,8 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 
 ## User settings (UI)
 - Group page lists group cards; open one to switch tabs: Manage, Group tasks, Messages, Usage, Activity.
+- Manage lists active members and, below them, **archived members** (with archive date and a `Handed over` mark). A `Restore` button turns one back into a working member: pick an unfinished task, it is assigned to them and their conversation is reopened. The leader can also do it with `multi_agent_member op="-g"`.
+- A done task shows its module brief (label `Module brief`) instead of a one-line completion note.
 - The page adapts to phone widths (v0.8.11): cards stack in one column, the tab bar wraps instead of overflowing, the detail header and the message header switch to two rows, and the activity diff keeps its line-number gutter. Width comes from the host frame, so it follows the pane, not a media query.
 - Max sessions per group (2–32, default 8).
 - Spawn model/reasoning: inherit leader (default) or a fixed model.
