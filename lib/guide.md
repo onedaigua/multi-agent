@@ -8,7 +8,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 - The server re-checks permissions on every write; tool visibility is only a hint.
 - Unsure about your group or role? Call `multi_agent_groups` first.
 
-## Tools (6; most select the operation with `op="-x"`)
+## Tools (7; most select the operation with `op="-x"`)
 
 ### multi_agent_groups
 - `-l` (default): list all groups, your role, leaders and members. The first line is your own session ID (`Your session ID: …`), which other members need for DMs and task assignment.
@@ -49,6 +49,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `query` extras for `-l`: `-a` all records, `-s <filename>`, `-m <sessionId>` (all records of one member), trailing number 1–200 (recent N). Without extras it lists entries currently in use; the UI tab always shows all records and expands the diff when a row is clicked.
 - `-d`: show the added/removed lines captured for one write. Needs `id` from the list. Each line carries the file line number when it is known: `- 12 <old line>` for a removed line and `+ 12 <new line>` for an added one (removed numbers are in the pre-write file, added numbers in the post-write file). Records captured before v0.8.10 only stored the text, so their numbers are blank — that is legacy data, not line 0.
 - A diff is recorded only for `write`/`edit` tool calls made by a group member, on text files under 512 KB (binary or oversized files are skipped); at most 200 removed and 200 added lines are kept and the record is marked truncated when lines were dropped. Shell writes are not captured.
+- Repeated writes to one file merge into the same record only when they are within 5 seconds of each other (line counts add up). A later write starts a new record, so earlier rounds and the big first rewrite stay visible in history instead of being overwritten.
 - The standard fs tools (`read`/`write`/`edit`) record locks automatically and enforce them; never register or edit entries by hand.
 - `read` locks are shared, `write` locks are exclusive. A conflicting fs call is denied with `FILE_IN_USE` until the holder releases it (or the 3/15-minute TTL expires). Locks are released when the fs call finishes.
 - `bash` and other shell commands are **not** covered by the guard.
@@ -64,11 +65,16 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - The Manage tab lists active members and, below them, parked members with `auto`/`manual` and the archive date. There is no Restore button: assign a task and the member comes back. The archived leader row carries `Unarchive`, the only way back for a manual archive.
 - Leaders who take work themselves claim their card with `multi_agent_task -u` (`assigneeSessionId` = their own session); completed work is kept as a record.
 
+### multi_agent_usage
+- `-l`: token usage report for one group. Needs `groupId` only when you lead several groups. One row per member (leader or member, input / cache read / output), plus the group total and each share; `refresh=true` bypasses the 15s cache.
+- Values are the provider-reported tokens of each session, the same numbers as the Usage tab; sessions that have not reported usage yet are shown as "no usage reported yet".
+
 ### multi_agent_message
 - `-l`: list messages (leader sees the whole group; members only their own).
 - `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`). A DM to a parked member also needs `taskId` of one of their done tasks: the task reopens (`doing`, module brief cleared), the member is woken and returns; it must write a new module brief before it can be parked again.
-- `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the error lists candidates).
-- Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait.
+- `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the error lists candidates). Every reply is also stored as its own message (`Reply to <messageId>`), so `-l` and the UI queue show the full audit chain, not only the nested `reply:` line.
+- Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait. Assigning a task sends the same kind of notification with the task description and a "start now" instruction; the member does not need a separate request.
+- A DSH notice such as "failed before it finished" means that turn was interrupted (network, abort, provider error) and the session is still alive; send the member a message or assign a task to continue. It is not a plugin error and the member is not parked by it.
 - A sender with pending replies must reply first; messages cannot cross groups; each delivery can be answered once.
 
 ## Workflow
