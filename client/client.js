@@ -301,6 +301,15 @@ function isFreshActivity(activity) {
       return error
     }
 
+    function apiKey() {
+      try {
+        const meta = document.querySelector('meta[name="dsh-multi-agent-key"]')
+        return meta ? String(meta.getAttribute('content') || '') : ''
+      } catch {
+        return ''
+      }
+    }
+
     async function apiFetch(path, options = {}) {
       let response
       try {
@@ -310,6 +319,7 @@ function isFreshActivity(activity) {
           cache: 'no-store',
           headers: {
             Accept: 'application/json',
+            ...(apiKey() ? { 'x-dsh-multi-agent-key': apiKey() } : {}),
             ...(options.headers || {}),
           },
         })
@@ -1948,6 +1958,7 @@ function isFreshActivity(activity) {
             sessionId: member.sessionId,
             role,
             takeover: takeOver === true,
+            ...(takeOver === true ? { confirmTakeover: true } : {}),
           })
           setTakeover(null)
           setNotice(
@@ -2005,10 +2016,12 @@ function isFreshActivity(activity) {
         setError(null)
         setNotice(null)
         try {
+          const archivingLeader = !archiveTarget.archivedAt && archiveTarget.sessionId === leaderId
           await store.mutate({
             action: 'archiveMember',
             groupId: group.id,
             sessionId: archiveTarget.sessionId,
+            ...(archivingLeader ? { confirmLeader: true } : {}),
           })
           const name = displayNameOf(byId, archiveTarget.sessionId)
           setNotice(
@@ -3668,6 +3681,7 @@ function isFreshActivity(activity) {
             groupId: group.id,
             role,
             takeover: takeOver === true,
+            ...(takeOver === true ? { confirmTakeover: true } : {}),
           })
           setActionNotice(role === ROLE_LEADER ? `Joined "${group.name}" as leader` : `Joined "${group.name}"`)
         } catch (error) {

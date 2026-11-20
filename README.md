@@ -123,13 +123,18 @@ Broadcast and private messages never cross groups, and private recipients must b
 
 The plugin serves a same-origin JSON API:
 
-- `GET /multi-agent/api/state` — read groups and memberships
-- `POST /multi-agent/api/action` — apply changes, requires the `x-dsh-multi-agent: 1` header
+- `GET /multi-agent/api/state` — read groups, memberships, tasks and recent activity
+- `GET /multi-agent/api/tools` — registered tool names and their role gates
+- `GET /multi-agent/api/models` — model groups that are routable for this profile
+- `GET /multi-agent/api/usage?groupId=&refresh=` — per-member token usage (15 s cache)
 - `GET /multi-agent/api/messages?groupId=&sessionId=` — read the queue visible to a given identity
+- `POST /multi-agent/api/action` — apply changes
 
-Supported actions: `createGroup`, `updateGroup`, `deleteGroup`, `assign`, `leave`, `sendMessage`, `replyMessage`, `markDelivered`.
+Every request needs two headers: `x-dsh-multi-agent: 1` and `x-dsh-multi-agent-key: <per-boot capability>`. The capability is injected into the SPA index as `<meta name="dsh-multi-agent-key">`, so only a page the DSH web server actually served can call the API; a local process without that page gets `401 UNAUTHENTICATED`.
 
-State file: `<profile>/.dsh-multi-agent/state.json`, schema version 2, with migration for the first single-group layout. Group messages are kept in an internal `messages` array that is not exposed by `/state`.
+Supported actions (19): `createGroup`, `updateGroup`, `deleteGroup`, `assign`, `leave`, `createTask`, `updateTask`, `setTaskStatus`, `deleteTask`, `createTaskEdge`, `deleteTaskEdge`, `createActivity`, `updateActivity`, `deleteActivity`, `createMemberSession`, `archiveMember`, `sendMessage`, `replyMessage`, `markDelivered`.
+
+State file: `<profile>/.dsh-multi-agent/state.json`, schema version 2, with migration for the first single-group layout. Writes go through a queue; the HTTP body is capped at 256 KB and a single activity diff at 512 KB. Messages are capped per group (2000) with an 8000-row hard ceiling across groups, and an unanswered message stops blocking its recipient after 24 hours.
 
 ## Development
 

@@ -93,7 +93,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 ## Ordering (avoid errors before they happen)
 1. Create the task modules first (`multi_agent_task -c`), then spawn or add members: `create_member` binds one free task, and a member with no open task is parked immediately.
 2. A broadcast only reaches active members. Assign a task before broadcasting (otherwise `NO_RECIPIENTS` says everyone else is parked); the assignment itself wakes the member.
-3. Assignment messages and broadcasts are unread messages: answer them (`multi_agent_message -r`) before sending anything else, or `PENDING_REPLY` blocks the send. Do not broadcast to a member who still owes a reply.
+3. Assignment messages and broadcasts are unread messages: answer them (`multi_agent_message -r`) before sending anything else, or `PENDING_REPLY` blocks the send. Do not broadcast to a member who still owes a reply. Replies can be answered too: a reply is a message you may answer back (`-r` on its `replyMessageId`), and such an answer never blocks the other side.
 4. Member order: set the card to `doing` first, then `done` with a module brief. Reopening a done card (done → doing) clears the old brief, so the next `done` needs a new one; a leader completing a card does not answer the assignment for the member.
 5. A done card with a brief is a record: it cannot be deleted (`TASK_LOCKED`) and reassigning it wakes nobody (no assignment message is sent). Reopen it first if the work must be redone.
 6. Unassigning the last open task parks that member. Assign the next task before unassigning if it must keep receiving messages.
@@ -103,7 +103,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 ## Limits
 - Tasks: 200; edges: 800; task ids look like `task_…`, `edge_…`; title 1–80; description ≤600; module brief ≤600. A length error reports the actual character count.
 - Groups: 40; memberships: 4000; name ≤40; description ≤240; max sessions per group 2–32 (default 8, user-adjustable).
-- Messages: ≤4000 chars each; 2000 kept; no cross-group sends.
+- Messages: ≤4000 chars each; 2000 kept per group (8000 across groups); an unanswered message stops blocking its recipient after 24 hours; no cross-group sends.
 - A leader cannot demote or remove itself; use `-x` to leave. If the leader leaves, the earliest member is promoted; empty groups are deleted.
 - Everyone can see all groups and their member session ids.
 
@@ -116,6 +116,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 - `FILE_IN_USE` (409): file locked; `PENDING_REPLY` (409): reply first; `NO_RECIPIENTS` (409): no active member to reach.
 - `NEED_RECIPIENT` / `NEED_MESSAGE_ID` (400): private DM or reply needs an id.
 - `ALREADY_REPLIED` / `NOT_RECIPIENT` (409/403); `NO_PENDING_REPLY` (404): the reply tool answers these three with a plain note instead of an error, since they are states, not failures.
+- `TAKEOVER_CONFIRM_REQUIRED` (409) / `LEADER_ARCHIVE_CONFIRM` (409): leadership moves and leader parking need an explicit confirmation flag; `TASK_GROUP_MISMATCH` (400): the task belongs to another group.
 - `NOT_ASSIGNEE` (403): that task belongs to another member; `SELF_PRIVATE` (400): cannot DM yourself.
 - `INVALID_*` (400); `*_NOT_FOUND` (404); `SESSION_SERVICE` (503): session service unavailable.
 - Member lifecycle: `NOTE_REQUIRED` (done without a module brief) / `TASK_LOCKED` (done record cannot be deleted) / `TASK_CONTEXT_REQUIRED` (DM to a parked member without `taskId`) (400).
