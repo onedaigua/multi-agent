@@ -13,7 +13,7 @@ Concise operational guide. Load this skill before calling any `multi_agent_*` to
 
 ### multi_agent_groups
 - `-l` (default): list all groups, your role, leaders and members. The first line is your own session ID (`Your session ID: …`), which other members need for DMs and task assignment.
-- `-m`: members of one group. Needs `groupId` unless you belong to exactly one group. Copy the full `recipientSessionId` for DMs.
+- `-m`: members of one group, with active/parked status (`parked (auto|manual)`). Needs `groupId` unless you belong to exactly one group. Copy the full `recipientSessionId` for DMs. `-l` marks parked members too and counts only active ones (`members 3/8, 2 parked`).
 - `-c`: scan the current workspace for sessions that can join a group.
 
 ### multi_agent_group
@@ -47,7 +47,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `-r`: delete an edge. Needs `edgeId`. Leader only.
 
 ### multi_agent_activity (query only)
-- `-l`: list records. Every record has a short numeric ID (compact 64-bit, encodes its creation time) and writes show `+added/-removed` line counts.
+- `-l`: list records. Every record has a short numeric ID (compact 64-bit, encodes its creation time); writes show the latest round `+added/-removed`, and with more than one write also `· N writes · hash a→b` for the whole record.
 - `query` extras for `-l`: `-a` all records, `-s <filename>`, `-m <sessionId>` (all records of one member), trailing number 1–200 (recent N). Without extras it lists entries currently in use; the UI tab always shows all records and expands the diff when a row is clicked.
 - `-d`: show the append-only history of one record. Needs `id` from the list. It prints `Writes: N`, the record file hash (`File hash: <before> → <after>`, sha256 truncated to 12 hex — compare it with a copy before restoring anything) and one block per write (`— write k · time · +added/-removed · hash <before>→<after>`) with the captured lines. Each line carries the file line number when it is known: `- 12 <old line>` for a removed line and `+ 12 <new line>` for an added one (removed numbers are in the pre-write file, added numbers in the post-write file). Records captured before v0.8.10 only stored the text, so their numbers are blank — that is legacy data, not line 0.
 - A diff is recorded only for `write`/`edit` tool calls made by a group member, on text files under 512 KB (binary or oversized files are skipped); at most 200 removed and 200 added lines are kept and the record is marked truncated when lines were dropped. Shell writes are not captured.
@@ -74,7 +74,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 ### multi_agent_message
 - `-l`: list messages (leader sees the whole group; members only their own). Task assignments are messages too (`mode=task`, from the leader): they wait for a reply like any DM.
 - `-s`: send. Needs `content` (≤4000 chars); defaults to broadcast. For a DM pass `mode="private"` and `recipientSessionId` (required; get it from `multi_agent_groups -m`). A DM to a parked member also needs `taskId` of one of their done tasks (`taskId` is a top-level tool parameter, separate from the text): the task reopens (`doing`, module brief cleared), the member is woken and returns; it must write a new module brief before it can be parked again.
-- `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the note lists the pending ids). Every reply is also stored as its own message (`Reply to <messageId>`), so `-l` and the UI queue show the full audit chain, not only the nested `reply:` line. Replying when nothing is pending, or to a message you did not receive, returns a short note instead of an error: such states are information, not failures.
+- `-r`: reply. Needs `content`; `messageId` optional when exactly one reply is pending (otherwise the note lists the pending ids). A reply is evidence of reading, not a status change: set the card to `doing` yourself (`-s`) when the assignment asks for work. Every reply is also stored as its own message (`Reply to <messageId>`), so `-l` and the UI queue show the full audit chain, not only the nested `reply:` line. Replying when nothing is pending, or to a message you did not receive, returns a short note instead of an error: such states are information, not failures.
 - Delivery is a non-blocking DSH agent notification: the sender returns immediately and does not wait. Assigning a task sends the same kind of notification with the task description and a "start now" instruction; the member does not need a separate request.
 - A DSH notice such as "failed before it finished" means that turn was interrupted (network, abort, provider error) and the session is still alive; send the member a message or assign a task to continue. It is not a plugin error and the member is not parked by it.
 - A sender with pending replies must reply first; messages cannot cross groups; each delivery can be answered once.
