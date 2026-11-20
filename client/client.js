@@ -1008,6 +1008,9 @@ function isFreshActivity(activity) {
                 const destination = activity.destination ? ` → ${activity.destination}` : ''
                 const expanded = expandedId === activity.id
                 const diff = activity.diff
+                const rounds = Array.isArray(activity.diffs) && activity.diffs.length > 0
+                  ? activity.diffs
+                  : (diff ? [diff] : [])
                 return h(
                   'li',
                   { key: activity.id, className: cx('ma-activity-row', expanded && 'is-open') },
@@ -1040,15 +1043,25 @@ function isFreshActivity(activity) {
                           ? h(
                               Fragment,
                               null,
-                              h('div', { className: 'ma-activity-diff-head' }, `Added ${diff.addedCount} / removed ${diff.removedCount} line(s)${diff.truncated ? ' (truncated)' : ''}`),
-                              h(
+                              h('div', { className: 'ma-activity-diff-head' }, `${rounds.length} write(s) · added ${diff.addedCount} / removed ${diff.removedCount} line(s)${diff.truncated ? ' (truncated)' : ''}`),
+                              activity.beforeHash && activity.afterHash
+                                ? h('div', { className: 'ma-activity-diff-hash' }, `file hash ${activity.beforeHash} → ${activity.afterHash}`)
+                                : null,
+                              ...rounds.map((round, index) => h(
                                 'div',
-                                { className: 'ma-activity-diff-body' },
-                                [
-                                  ...(Array.isArray(diff.removed) ? diff.removed.map((entry, index) => diffLine('-', entry, index)) : []),
-                                  ...(Array.isArray(diff.added) ? diff.added.map((entry, index) => diffLine('+', entry, index)) : []),
-                                ],
-                              ),
+                                { key: index, className: 'ma-activity-round' },
+                                rounds.length > 1
+                                  ? h('div', { className: 'ma-activity-diff-head' }, `write ${index + 1} · ${formatDateTime(round.at || activity.updatedAt)} · +${round.addedCount}/-${round.removedCount}`)
+                                  : null,
+                                h(
+                                  'div',
+                                  { className: 'ma-activity-diff-body' },
+                                  [
+                                    ...(Array.isArray(round.removed) ? round.removed.map((entry, lineIndex) => diffLine('-', entry, lineIndex)) : []),
+                                    ...(Array.isArray(round.added) ? round.added.map((entry, lineIndex) => diffLine('+', entry, lineIndex)) : []),
+                                  ],
+                                ),
+                              )),
                               diff.truncated ? h('p', { className: 'ma-activity-diff-note' }, 'Showing the first lines only.') : null,
                             )
                           : h('p', { className: 'ma-activity-diff-empty' }, activity.state === 'write' ? 'No line change was captured for this write (the file may have been unchanged or the call failed).' : 'Read access only; no line change.'),
@@ -2383,6 +2396,9 @@ function isFreshActivity(activity) {
       if (message.mode === 'private') {
         return `Private message to ${displayNameOf(byId, message.recipientSessionId)}`
       }
+      if (message.mode === 'task') {
+        return `Task assignment to ${displayNameOf(byId, message.recipientSessionId)}`
+      }
       const count = Array.isArray(message.deliveries) ? message.deliveries.length : 0
       return count > 0 ? `Broadcast to ${count} members` : 'Broadcast'
     }
@@ -2956,7 +2972,7 @@ function isFreshActivity(activity) {
                             h(
                               'span',
                               null,
-                              `${messageAudience(message, byId)} · ${message.mode === 'broadcast' ? `${replies}/${message.deliveries.length} replied` : message.mode === 'reply' ? 'Reply' : 'Private message'}`,
+                              messageAudience(message, byId), ` · ${message.mode === 'broadcast' ? `${replies}/${message.deliveries.length} replied` : message.mode === 'reply' ? 'Reply' : message.mode === 'task' ? 'Task assignment' : 'Private message'}`,
                             ),
                           ),
                           h('time', { dateTime: message.createdAt }, formatDateTime(message.createdAt)),
@@ -6128,6 +6144,8 @@ function isFreshActivity(activity) {
 .ma-diff-line.is-removed .ma-diff-sign { color: #cf222e; }
 .ma-diff-text { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
 .ma-activity-diff-note { margin: 4px 0 0; font-size: 10px; color: var(--ma-text-3); }
+.ma-activity-diff-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--ma-text-3); margin-bottom: 6px; }
+.ma-activity-round + .ma-activity-round { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--ma-border); }
 .ma-activity-diff-empty { margin: 0; font-size: 10.5px; color: var(--ma-text-3); }
 .ma-activity-state { flex: none; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 600; line-height: 1.6; }
 .ma-activity-state.is-read { color: var(--ma-text-2); background: var(--ma-soft); }
@@ -6307,6 +6325,7 @@ function isFreshActivity(activity) {
       "Reopen task": "重开任务",
       "No done task assigned": "没有指派给它的已完成任务",
       "Confirm unarchive": "确认取消归档",
+      "Task assignment": "任务分配",
       "auto": "自动",
       "manual": "手动",
       "Archive": "归档",
@@ -6325,7 +6344,13 @@ function isFreshActivity(activity) {
       ["Archive (.+?)\\? The member stops receiving messages and leaves the active count; assigning a task brings it back\\.", "归档 $1？该成员将不再接收消息并离开活跃计数；分配任务即可恢复。"],
       ["Archived (.+?)", "已归档 $1"],
       ["Brought back (.+?)\.", "已将 $1 恢复为活跃成员。"],
+      ["Task assignment to Conversation (.+?)", "任务分配：对话 $1"],
+      ["Task assignment to (.+?)", "任务分配：$1"],
+      ["file hash (.+?) → (.+?)", "文件哈希 $1 → $2"],
+      ["write (\\d+) · (.+?) · \\+(\\d+)/-(\\d+)", "第 $1 次 · $2 · +$3/-$4"],
       ["Bring (.+?) back\\? The member returns to the active list and receives messages again\.", "恢复 $1？该成员将回到活跃列表并重新接收消息。"],
+      ["· Task assignment", " · 任务分配"],
+      ["(\\d+) write\\(s\\) · added (\\d+) / removed (\\d+) line\\(s\\)", "$1 次写入 · 新增 $2 行 / 删除 $3 行"],
     )
 
     let maLocale = "en"
