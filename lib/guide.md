@@ -32,8 +32,8 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 - `name` (required, 2–24 chars), `taskId` (required), `groupId` (optional when you lead one group).
 - Requires a free task module and a free member slot (`maxSessions`).
 - No history is inherited; model/reasoning come from the group spawn config (default: inherit leader).
-- The new agent runs one short setup turn (loads the guide), then stays idle.
-- It joins as a member and becomes the task assignee.
+- The new agent runs one short setup turn (loads the guide), then the bound module is announced in the same call: the leader posts the assignment as a real message (`mode=task`) and wakes the member with a steer interjection, so it sets the card to `doing`, replies and starts on its own — no manual DM needed.
+- It joins as a member and becomes the task assignee; the tool result reports whether the assignment was delivered (`sent`) or failed with the reason (then reassign with `multi_agent_task -u` to retry).
 
 ### multi_agent_task
 - `-l`: list tasks and edges (any member).
@@ -81,7 +81,7 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 
 ## Workflow
 1. Leader: create a group (`multi_agent_group -n`), then add existing sessions (`-a`) or spawn new ones (`create_member`).
-2. Leader: split work into task modules first (`multi_agent_task -c title=... status=todo`); each spawned session must bind one unassigned task.
+2. Leader: split work into task modules first (`multi_agent_task -c title=... status=todo`); each spawned session must bind one unassigned task. `create_member` announces that module immediately and wakes the new member, so spawned members start working without a manual DM.
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`) and messages (`multi_agent_message -l`); claim the assignment message by setting the card to `doing` (`-s taskId status=doing`) and replying to it, then work only on assigned tasks, set `-s taskId status=done` with the module brief when done.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the full write history of a record: every write is appended (with before/after hash) instead of merged, so earlier rounds and the first big rewrite stay visible; just work normally.

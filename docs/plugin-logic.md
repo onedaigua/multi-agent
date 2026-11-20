@@ -103,7 +103,7 @@
 |---|---|---|---|---|
 | `multi_agent_groups` | `-l`（默认）/ `-m` / `-c` | `groupId` | 所有成员 | 只读；`-m` 显示 active/parked 与 `recipientSessionId` |
 | `multi_agent_group` | `-n/-j/-x/-u/-d/-a/-r/-s/-t` | `name`、`groupId`、`sessionId`、`role`、`takeover` | 所有成员；`-u/-d/-a/-r/-s` 组长 | 建组/入组/退组/改名/删组/增删成员/改角色/扫描候选；入组即可能归档 |
-| `multi_agent_create_member` | 无 | `name`(2–24)、`taskId`(必填，未分配模块)、`groupId` | 组长 | 创建子代理会话并绑定任务模块；入组后按有无未完成任务决定是否归档 |
+| `multi_agent_create_member` | 无 | `name`(2–24)、`taskId`(必填，未分配模块)、`groupId` | 组长 | 创建子代理会话并绑定任务模块，同一调用内发出分配消息（mode=task）并用 steer 插话唤醒新成员，入组后按有无未完成任务决定是否归档 |
 | `multi_agent_task` | `-l/-c/-u/-d/-s/-x/-r` | `taskId`、`title`、`description`、`status`、`completionNote`、`assigneeSessionId`、`from/to`、`edgeId` | 成员可 `-l/-s`；组长可全部（组长可把卡片指派给自己） | 建/改/删任务、改状态、建删依赖边；分配会召回归档成员并写分配消息+插话唤醒 |
 | `multi_agent_activity` | `-l/-d` | `id`、`query` | 成员 | 只读；`-d` 展示追加式写入历史与哈希链 |
 | `multi_agent_usage` | `-l` | `groupId`、`refresh` | 组长 | 只读；按成员与组汇总 token |
@@ -113,7 +113,7 @@
 
 1. 组长 `group -n` 建组 → leader。
 2. 组长 `task -c` 切分任务模块（可先不指派）→ `task -x` 连依赖。
-3. 组长 `create_member`（绑定未分配模块）→ 新会话加入，组员按规则就位。
+3. 组长 `create_member`（绑定未分配模块）→ 新会话加入并自动收到分配消息与插话唤醒，组员按规则就位，无需再补 DM。
 4. 组长 `task -u assigneeSessionId` 分配：
    - 修状态（归档→活跃，必要时 unarchive）→ 写 `mode=task` 分配消息（deliveries 初始 pending）→ `steer` 插话唤醒 → 结算 `sent`/`failed`。
 5. 组员 `message -l` 看到分配 → `task -s status=doing` → `message -r` 回复（独立存档）。
