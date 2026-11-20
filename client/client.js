@@ -6461,6 +6461,7 @@ function isFreshActivity(activity) {
       let scheduled = false
       const run = () => {
         if (maLocale !== 'zh') return
+        maRelabelSoon()
         if (scheduled) return
         scheduled = true
         queueMicrotask(() => {
@@ -6468,6 +6469,22 @@ function isFreshActivity(activity) {
           maTranslateTree(document.body)
         })
       }
+
+      // Group messages arrive as DSH agent messages (source.kind 'agent-message'),
+      // which the host renders as a collapsed context row. Relabel that row in zh.
+      let maLabelScheduled = false
+      const maRelabelInjectionSources = () => {
+        if (maLocale !== 'zh') return
+        for (const element of document.querySelectorAll('[data-context-source]')) {
+          if (element.textContent === 'agent-message') element.textContent = '智能体消息'
+        }
+      }
+      const maRelabelSoon = () => {
+        if (maLabelScheduled) return
+        maLabelScheduled = true
+        queueMicrotask(() => { maLabelScheduled = false; maRelabelInjectionSources() })
+      }
+      maRelabelSoon()
       const observer = new MutationObserver(run)
       observer.observe(document.body, {
         subtree: true,

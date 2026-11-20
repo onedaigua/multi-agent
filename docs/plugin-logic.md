@@ -65,10 +65,10 @@
 
 每条 delivery 的状态只有三种：`pending`（刚创建）、`sent`、`failed`（带 `error`）。
 
-- 普通消息：`notifyAgent`（DSH 通知 / 活跃会话注入）→ 失败则 `controller.prompt(mode='steer')` 插话 → 成功 `markDelivered(sent)`，失败 `markDelivered(failed, error)`。
+- 普通消息：优先 `agent.steer`（source.kind `agent-message`，列表中渲染为折叠的「上下文注入」行）→ 失败则 `controller.prompt(mode='steer')` → 再失败 `notifyAgent`（DSH 通知 / 活跃会话注入）；成功 `markDelivered(sent)`，失败 `markDelivered(failed, error)`。
 - **任务分配消息**（v0.8.25）：
   1. 先判 assignee：不在组 / 仍归档且无未完成任务 → 直接判投递非法并写 `failed`（附原因），不推送；
-  2. 以 `steer` 插话为主通道（与 UI 用户插话同通道，idle 会话也会起一轮），最多尝试 2 次；第二次前先补一次 `unarchiveSession`；
+  2. 以 `agent.steer` 的 agent-message 注入为主通道（idle 会话也会起一轮，且不会显示成用户自己发的消息），`controller.prompt` 兜底，最多尝试 2 次；第二次前先补一次 `unarchiveSession`；
   3. 仍失败则退回非阻塞通知，再失败写 `failed`；
   4. 结果回传给工具：成功 → `Assignment message msg_… was delivered.`（召回时加 `and the parked member is active again.`）；失败 → `WARNING: … delivery failed (…); the member was not woken. Reassign the card or send a message to retry.`
 - 兜底：`mode=task` 的 delivery 若超过 10 分钟仍是 `pending`，下次读取时归一为 `failed`（"delivery was never confirmed; reassign the card to retry"），不会永远显示"投递中"。
@@ -140,6 +140,6 @@
 
 - 归档用插件状态而非 DSH 会话归档：分配任务即可原地唤醒，不需要 unarchive 往返，也不会因宿主归档导致 prompt 被拒。
 - 分配必须"先修状态再投递"：否则会出现"成员已归档 → 投递被拒 → 显示投递中"的假死。
-- 插话（`steer`）优先于非阻塞通知：通知只保证"消息送达"，插话才保证"这一轮真的开始"。
+- `agent.steer`（agent-message 注入）优先于非阻塞通知：通知只保证"消息送达"，steer 才保证"这一轮真的开始"；用 agent-message 来源还让群消息在对话里显示为折叠的上下文注入行。
 - 执行列表按成员+文件记录、追加轮次：恢复文件需要"这一轮之前是什么样"，覆盖式 diff 拿不到中间态，哈希链让外部修改可被发现。
 - 回复独立入库：`reply` 嵌套字段无法被 `-l` 检索，审计链会断在消息层。
