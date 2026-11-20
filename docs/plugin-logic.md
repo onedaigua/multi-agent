@@ -65,7 +65,7 @@
 
 每条 delivery 的状态只有三种：`pending`（刚创建）、`sent`、`failed`（带 `error`）。
 
-- 普通消息：优先 `agent.steer`（source.kind `agent-message`，列表中渲染为折叠的「上下文注入」行）→ 失败则 `controller.prompt(mode='steer')` → 再失败 `notifyAgent`（DSH 通知 / 活跃会话注入）；成功 `markDelivered(sent)`，失败 `markDelivered(failed, error)`。
+- 普通消息：优先 `agent.steer`（source.kind `agent-message`，列表中渲染为折叠的「上下文注入」行）→ 目标不在主 agents 注册表时改用 `ctx.subagents.sendMessage(senderAgent, targetId, …)`（subagent 成员只能走这条通道，`controller.prompt` 会报 "owned by subagent routing"）→ 再失败 `controller.prompt(mode='steer')` → 最后 `notifyAgent`；成功 `markDelivered(sent)`，失败 `markDelivered(failed, error)`。
 - **任务分配消息**（v0.8.25）：
   1. 先判 assignee：不在组 / 仍归档且无未完成任务 → 直接判投递非法并写 `failed`（附原因），不推送；
   2. 以 `agent.steer` 的 agent-message 注入为主通道（idle 会话也会起一轮，且不会显示成用户自己发的消息），`controller.prompt` 兜底，最多尝试 2 次；第二次前先补一次 `unarchiveSession`；
