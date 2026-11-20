@@ -6472,15 +6472,46 @@ function isFreshActivity(activity) {
         sync()
         ctx.effect(() => locale.subscribe(sync), "dsh-multi-agent: locale sync")
       }
-      let scheduled = false
-      const run = () => {
+      // Translating on every DOM mutation used to walk the whole document for
+      // each streamed token. Only the plugin's own subtrees need translation,
+      // so each mutation is narrowed to its nearest ma-* scope and the work is
+      // coalesced into one animation frame.
+      const maOwnedScope = (node) => {
+        let element = node && node.nodeType === 1 ? node : node && node.parentElement
+        while (element && element !== document.body) {
+          if (typeof element.className === 'string' && /(^|\s)ma-/.test(element.className)) return element
+          element = element.parentElement
+        }
+        return null
+      }
+      let pendingScopes = new Set()
+      let frame = 0
+      const run = (records) => {
         if (maLocale !== 'zh') return
         maRelabelSoon()
-        if (scheduled) return
-        scheduled = true
-        queueMicrotask(() => {
-          scheduled = false
-          maTranslateTree(document.body)
+        if (!records || typeof records[Symbol.iterator] !== 'function') {
+          pendingScopes.add(document.body)
+        } else {
+          for (const record of records) {
+            const scope = maOwnedScope(record.target)
+            if (scope) {
+              pendingScopes.add(scope)
+              continue
+            }
+            if (record.type === 'childList') {
+              for (const node of record.addedNodes) {
+                if (node.nodeType !== 1) continue
+                if (typeof node.className === 'string' && /(^|\s)ma-/.test(node.className)) pendingScopes.add(node)
+              }
+            }
+          }
+        }
+        if (frame || pendingScopes.size === 0) return
+        frame = requestAnimationFrame(() => {
+          frame = 0
+          const scopes = [...pendingScopes]
+          pendingScopes = new Set()
+          for (const scope of scopes) if (scope.isConnected) maTranslateTree(scope)
         })
       }
 
@@ -6507,7 +6538,12 @@ function isFreshActivity(activity) {
         attributes: true,
         attributeFilter: ["placeholder", "title", "aria-label"],
       })
-      ctx.effect(() => () => observer.disconnect(), "dsh-multi-agent: locale observer")
+      ctx.effect(() => () => {
+        observer.disconnect()
+        if (frame) cancelAnimationFrame(frame)
+        frame = 0
+        pendingScopes = new Set()
+      }, "dsh-multi-agent: locale observer")
       ctx.effect(() => {
         maLocaleListeners.add(run)
         return () => { maLocaleListeners.delete(run) }

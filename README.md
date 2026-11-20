@@ -134,6 +134,8 @@ Every request needs two headers: `x-dsh-multi-agent: 1` and `x-dsh-multi-agent-k
 
 Supported actions (19): `createGroup`, `updateGroup`, `deleteGroup`, `assign`, `leave`, `createTask`, `updateTask`, `setTaskStatus`, `deleteTask`, `createTaskEdge`, `deleteTaskEdge`, `createActivity`, `updateActivity`, `deleteActivity`, `createMemberSession`, `archiveMember`, `sendMessage`, `replyMessage`, `markDelivered`.
 
+Operational limits: each wake call runs under a 15 s deadline (`DSH_MA_WAKE_TIMEOUT_MS` overrides it) and a timeout counts as a failed delivery, so a stalled prompt can never block the profile's write queue forever. Abandoned write snapshots are swept after 10 minutes (128 entries max), one activity record keeps at most 24 KB of rounds (oldest dropped first), and the state file is written as compact JSON.
+
 State file: `<profile>/.dsh-multi-agent/state.json`, schema version 2, with migration for the first single-group layout. Writes go through a queue; the HTTP body is capped at 256 KB and a single activity diff at 512 KB. Messages are capped per group (2000) with an 8000-row hard ceiling across groups, and an unanswered message stops blocking its recipient after 24 hours.
 
 ## Development
