@@ -85,10 +85,20 @@ Create a fresh agent in the leader's workspace and bind it to one unassigned tas
 3. Leader: assign owners (`-u assigneeSessionId`) and connect dependencies (`-x from to`).
 4. Member: list tasks (`-l`) and messages (`multi_agent_message -l`); claim the assignment message by setting the card to `doing` (`-s taskId status=doing`) and replying to it, then work only on assigned tasks, set `-s taskId status=done` with the module brief when done.
 5. Shared files lock automatically: `read` (shared) / `write` (exclusive). Use `multi_agent_activity -l` to see holders, `-d id=...` for the full write history of a record: every write is appended (with before/after hash) instead of merged, so earlier rounds and the first big rewrite stay visible; just work normally.
-6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). With no unfinished task left you are parked automatically and stop receiving broadcasts; the next assignment revives you, and a DM that names one of your done tasks reopens it and wakes you too.
+6. Finished a task? Mark it `done` with a module brief (what it does, key files, how others use it). A reopened card forgets the old brief; write a new one. With no unfinished task left you are parked automatically and stop receiving broadcasts; the next assignment revives you, and a DM that names one of your done tasks reopens it and wakes you too.
 7. Report results to the leader by DM (a non-blocking notification); the leader reports to the user.
 
 Common params: `groupId` is optional when you belong to exactly one group; member operations take `sessionId`.
+
+## Ordering (avoid errors before they happen)
+1. Create the task modules first (`multi_agent_task -c`), then spawn or add members: `create_member` binds one free task, and a member with no open task is parked immediately.
+2. A broadcast only reaches active members. Assign a task before broadcasting (otherwise `NO_RECIPIENTS` says everyone else is parked); the assignment itself wakes the member.
+3. Assignment messages and broadcasts are unread messages: answer them (`multi_agent_message -r`) before sending anything else, or `PENDING_REPLY` blocks the send. Do not broadcast to a member who still owes a reply.
+4. Member order: set the card to `doing` first, then `done` with a module brief. Reopening a done card (done → doing) clears the old brief, so the next `done` needs a new one; a leader completing a card does not answer the assignment for the member.
+5. A done card with a brief is a record: it cannot be deleted (`TASK_LOCKED`) and reassigning it wakes nobody (no assignment message is sent). Reopen it first if the work must be redone.
+6. Unassigning the last open task parks that member. Assign the next task before unassigning if it must keep receiving messages.
+7. Transfer leadership with `-s sessionId role=leader` before leaving; a leader cannot remove or demote itself.
+8. Link edges between tasks that already exist and keep the flow acyclic (`TASK_CYCLE`).
 
 ## Limits
 - Tasks: 200; edges: 800; task ids look like `task_…`, `edge_…`; title 1–80; description ≤600; module brief ≤600. A length error reports the actual character count.
@@ -103,7 +113,7 @@ Common params: `groupId` is optional when you belong to exactly one group; membe
 - `TASK_REQUIRED` (400) / `NO_TASK_MODULE` / `TASK_ALREADY_ASSIGNED` (409): spawn needs one free task module.
 - `INVALID_STATUS` (400): status must be todo/doing/done (task create needs it too).
 - `TASK_CYCLE` / `TASK_EDGE_EXISTS` / `TASK_LIMIT` / `TASK_EDGE_LIMIT` (409).
-- `FILE_IN_USE` (409): file locked; `PENDING_REPLY` (409): reply first.
+- `FILE_IN_USE` (409): file locked; `PENDING_REPLY` (409): reply first; `NO_RECIPIENTS` (409): no active member to reach.
 - `NEED_RECIPIENT` / `NEED_MESSAGE_ID` (400): private DM or reply needs an id.
 - `ALREADY_REPLIED` / `NOT_RECIPIENT` (409/403); `NO_PENDING_REPLY` (404): the reply tool answers these three with a plain note instead of an error, since they are states, not failures.
 - `NOT_ASSIGNEE` (403): that task belongs to another member; `SELF_PRIVATE` (400): cannot DM yourself.
